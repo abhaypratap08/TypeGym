@@ -25,7 +25,7 @@ const LiveMetrics = memo(function LiveMetrics({
   const timeColor = timeLeft <= 10 ? 'var(--accent-red)' : 'var(--text-primary)'
 
   return (
-    <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+    <div className="metrics-row">
       <div className="metric-card">
         <div className="metric-label">wpm</div>
         <div className="metric-value" style={{ color: 'var(--accent-blue)' }}>

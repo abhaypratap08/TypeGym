@@ -32,6 +32,137 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+body {
+  min-height: 100dvh;
+}
+
+/* ── App shell ── */
+.app-shell {
+  min-height: 100dvh;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 36px;
+  border-bottom: 1px solid rgba(48, 54, 61, 0.25);
+  position: relative;
+  z-index: 10;
+}
+
+.header-hints {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 20px;
+  font-size: 11px;
+  color: var(--text-dim);
+  align-items: center;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px 44px;
+  gap: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.app-footer {
+  padding: 13px 36px;
+  border-top: 1px solid rgba(48, 54, 61, 0.2);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: 'Outfit', sans-serif;
+  position: relative;
+  z-index: 1;
+}
+
+.word-shell {
+  position: relative;
+  width: 100%;
+  max-width: 860px;
+  border: 1px solid rgba(48, 54, 61, 0.42);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(28, 33, 40, 0.94) 0%, rgba(13, 17, 23, 0.96) 100%);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.typing-input-proxy {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  opacity: 0.01;
+  font-size: 16px;
+  z-index: 2;
+}
+
+.word-display {
+  position: relative;
+  z-index: 1;
+  padding: 28px 30px;
+}
+
+.word-display-text {
+  font-size: 22px;
+  line-height: 2.1;
+  user-select: none;
+  cursor: text;
+  min-height: 150px;
+}
+
+.tap-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 860px;
+  text-wrap: balance;
+}
+
+.metrics-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 30px;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
 /* ── Character states ── */
 .char-correct   { color: var(--accent-blue); }
 .char-incorrect { color: var(--accent-red); background: rgba(248, 81, 73, 0.08); border-radius: 2px; }
@@ -206,4 +337,92 @@ kbd {
   font-family: 'JetBrains Mono', monospace;
   margin-right: 4px;
   color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+  .app-header {
+    padding: 16px 20px;
+  }
+
+  .app-footer {
+    padding: 13px 20px;
+  }
+
+  .word-display {
+    padding: 24px 22px;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px 16px 14px;
+  }
+
+  .header-hints {
+    justify-content: flex-start;
+    gap: 10px 16px;
+  }
+
+  .app-main {
+    justify-content: flex-start;
+    padding: 18px 14px 28px;
+    gap: 18px;
+  }
+
+  .mode-btn {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .metric-card {
+    min-width: 74px;
+    padding: 9px 16px;
+  }
+
+  .metric-value {
+    font-size: 24px;
+  }
+
+  .word-shell {
+    border-radius: 18px;
+  }
+
+  .word-display {
+    padding: 18px 16px 20px;
+  }
+
+  .word-display-text {
+    font-size: 18px;
+    line-height: 1.9;
+    min-height: 132px;
+  }
+
+  .result-card {
+    padding: 24px 18px;
+    border-radius: 16px;
+  }
+
+  .results-header {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
+
+  .results-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px 16px 18px;
+  }
+
+  .ambient-glow {
+    width: 420px;
+    height: 280px;
+    top: -120px;
+  }
 }

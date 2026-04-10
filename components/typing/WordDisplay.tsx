@@ -126,16 +126,12 @@ export default function WordDisplay({
   }, [words, curIdx])
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="word-display">
       {/* Words */}
       <div
+        className="word-display-text"
         style={{
-          fontSize:   22,
-          lineHeight: 2.1,
-          userSelect: 'none',
-          cursor:     'text',
-          minHeight:  150,
-          opacity:    isIdle ? 0.92 : 1,
+          opacity: isIdle ? 0.92 : 1,
           transition: 'opacity 0.2s ease',
         }}
         aria-label="Typing test text"

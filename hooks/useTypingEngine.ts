@@ -60,6 +60,7 @@ export interface TypingEngineActions {
   setWordSetting: (w: number) => void
   resetTest:      () => void
   handleKeyDown:  (e: KeyboardEvent) => void
+  handleTextInput: (value: string) => void
 }
 
 // ─── Metric helpers ───────────────────────────────────────────────────────────
@@ -110,6 +111,10 @@ function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   if (target.isContentEditable) return true
   return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+}
+
+function clampInput(value: string, expected: string): string {
+  return value.slice(0, expected.length + 10)
 }
 
 function buildWordList(mode: TestMode, timeSetting: number, wordSetting: number): string[] {
@@ -194,6 +199,55 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
     })
   }, [])
 
+  const commitWord = useCallback((typed: string) => {
+    const { phase: ph, words: ws, currentWordIdx: wi, mode: m, wordSetting: wset,
+            wordResults: res, elapsed: el } = refs.current
+
+    if (ph === 'finished' || typed === '') return
+
+    const word = ws[wi]
+    if (!word) return
+
+    const newRes   = [...res, { word, typed }]
+    const nextWIdx = wi + 1
+
+    setResults(newRes)
+    setWIdx(nextWIdx)
+    setInput('')
+
+    if (ph === 'idle') setPhase('active')
+
+    if (m === 'time' && nextWIdx >= ws.length - 20) {
+      setWords(prev => extendWords(prev, 100))
+    }
+
+    const isDone =
+      (m === 'words' && nextWIdx >= wset) ||
+      ((m === 'quote' || m === 'code') && nextWIdx >= ws.length)
+
+    if (isDone) setTimeout(() => finishTest(newRes, el + 1), 50)
+  }, [finishTest])
+
+  const handleTextInput = useCallback((value: string) => {
+    const { phase: ph, words: ws, currentWordIdx: wi } = refs.current
+
+    if (ph === 'finished') return
+
+    const normalized = value.replace(/\r?\n/g, ' ')
+    const hasCommitChar = /\s/.test(normalized)
+
+    if (hasCommitChar) {
+      const typed = normalized.trim().split(/\s+/)[0] ?? ''
+      commitWord(typed)
+      return
+    }
+
+    const currentWord = ws[wi] ?? ''
+    const nextValue = clampInput(normalized, currentWord)
+    setInput(nextValue)
+    if (ph === 'idle' && nextValue !== '') setPhase('active')
+  }, [commitWord])
+
   // ── Timer (only active while phase === 'active') ───────────────────────────
 
   useEffect(() => {
@@ -233,30 +287,7 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
     // ── Space / Enter → commit current word ──────────────────────────────────
     if (key === ' ' || key === 'Enter') {
       e.preventDefault()
-      if (ci === '') return
-
-      const word = ws[wi]
-      if (!word) return
-
-      const newRes   = [...res, { word, typed: ci }]
-      const nextWIdx = wi + 1
-
-      setResults(newRes)
-      setWIdx(nextWIdx)
-      setInput('')
-
-      if (ph === 'idle') setPhase('active')
-
-      if (m === 'time' && nextWIdx >= ws.length - 20) {
-        setWords(prev => extendWords(prev, 100))
-      }
-
-      // Check end condition for word/quote/code modes
-      const isDone =
-        (m === 'words' && nextWIdx >= wset) ||
-        ((m === 'quote' || m === 'code') && nextWIdx >= ws.length)
-
-      if (isDone) setTimeout(() => finishTest(newRes, el + 1), 50)
+      commitWord(ci)
       return
     }
 
@@ -270,9 +301,9 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
     if (key.length === 1) {
       if (ph === 'idle') setPhase('active')
       const cw = ws[wi] ?? ''
-      setInput(prev => prev.length < cw.length + 10 ? prev + key : prev)
+      setInput(prev => clampInput(prev + key, cw))
     }
-  }, [finishTest])
+  }, [commitWord])
 
   // ── Live metrics (memoized — only recompute when relevant state changes) ───
 
@@ -306,6 +337,6 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
     liveWPM, liveAccuracy,
     finalResults,
     setMode, setTimeSetting, setWordSetting,
-    resetTest, handleKeyDown,
+    resetTest, handleKeyDown, handleTextInput,
   }
 }

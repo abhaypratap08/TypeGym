@@ -7,6 +7,7 @@ import type { FinalResults } from '@/hooks/useTypingEngine'
 interface ResultsScreenProps {
   results:   FinalResults
   onRestart: () => void
+  showKeyboardHint?: boolean
 }
 
 interface StatCardProps {
@@ -52,7 +53,11 @@ function StatCard({ label, value, color, large = false, delay = 0 }: StatCardPro
  * ResultsScreen — shown after each completed test.
  * Displays WPM, accuracy, errors, timing, and a performance tier badge.
  */
-export default function ResultsScreen({ results, onRestart }: ResultsScreenProps) {
+export default function ResultsScreen({
+  results,
+  onRestart,
+  showKeyboardHint = true,
+}: ResultsScreenProps) {
   const { wpm, accuracy, errors, correctChars, totalChars, duration } = results
 
   const perf = useMemo(() => {
@@ -83,12 +88,7 @@ export default function ResultsScreen({ results, onRestart }: ResultsScreenProps
       transition={{ duration: 0.35, ease: 'easeOut' }}
     >
       {/* Header row */}
-      <div style={{
-        display:        'flex',
-        justifyContent: 'space-between',
-        alignItems:     'center',
-        marginBottom:   30,
-      }}>
+      <div className="results-header">
         <h2 style={{
           fontFamily:    'Outfit, sans-serif',
           fontWeight:    700,
@@ -118,12 +118,7 @@ export default function ResultsScreen({ results, onRestart }: ResultsScreenProps
       </div>
 
       {/* Stats grid: 2 columns */}
-      <div style={{
-        display:               'grid',
-        gridTemplateColumns:   '1fr 1fr',
-        gap:                   12,
-        marginBottom:          22,
-      }}>
+      <div className="results-grid">
         <StatCard label="wpm"          value={wpm}          color="var(--accent-blue)"  large delay={0.05} />
         <StatCard label="accuracy"     value={`${accuracy}%`} color={accColor}          large delay={0.10} />
         <StatCard label="errors"       value={errors}       color={errors === 0 ? 'var(--accent-green)' : 'var(--accent-red)'} delay={0.15} />
@@ -199,7 +194,9 @@ export default function ResultsScreen({ results, onRestart }: ResultsScreenProps
         >
           <RestartIcon />
           Try Again
-          <span style={{ opacity: 0.4, fontSize: 10, marginLeft: 2 }}>tab</span>
+          {showKeyboardHint && (
+            <span style={{ opacity: 0.4, fontSize: 10, marginLeft: 2 }}>tab</span>
+          )}
         </button>
       </motion.div>
     </motion.div>

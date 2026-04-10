@@ -17,7 +17,7 @@
  *     └── ResultsScreen (visible when finished)
  */
 
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef, useState } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTypingEngine } from '@/hooks/useTypingEngine'
@@ -28,20 +28,48 @@ import ResultsScreen  from './ResultsScreen'
 
 export default function TypingApp() {
   const engine = useTypingEngine()
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const [isTouchDevice, setIsTouchDevice] = useState(false)
 
   const {
     mode, timeSetting, wordSetting,
     phase, words, currentInput, wordResults, currentWordIdx,
     timeLeft, liveWPM, liveAccuracy, finalResults,
     setMode, setTimeSetting, setWordSetting,
-    resetTest, handleKeyDown,
+    resetTest, handleKeyDown, handleTextInput,
   } = engine
+
+  const focusInput = useCallback(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const media = window.matchMedia('(pointer: coarse)')
+    const syncInputMode = () => setIsTouchDevice(media.matches || navigator.maxTouchPoints > 0)
+
+    syncInputMode()
+
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', syncInputMode)
+      return () => media.removeEventListener('change', syncInputMode)
+    }
+
+    media.addListener(syncInputMode)
+    return () => media.removeListener(syncInputMode)
+  }, [])
 
   // ── Global keyboard listener ───────────────────────────────────────────────
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
+
+  useEffect(() => {
+    if (phase === 'finished') return
+    focusInput()
+  }, [focusInput, phase])
 
   // ── Tab → restart (separate listener so it can preventDefault) ────────────
   useEffect(() => {
@@ -63,30 +91,16 @@ export default function TypingApp() {
 
   return (
     <div
-      className="bg-grid"
+      className="bg-grid app-shell"
       style={{
-        fontFamily:    "'JetBrains Mono', 'Fira Code', monospace",
-        minHeight:     '100vh',
-        background:    'var(--bg-primary)',
-        display:       'flex',
-        flexDirection: 'column',
-        position:      'relative',
-        overflow:      'hidden',
+        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
       }}
     >
       {/* Ambient glow */}
       <div className="ambient-glow" />
 
       {/* ── HEADER ────────────────────────────────────────────────────────── */}
-      <header style={{
-        display:        'flex',
-        justifyContent: 'space-between',
-        alignItems:     'center',
-        padding:        '18px 36px',
-        borderBottom:   '1px solid rgba(48, 54, 61, 0.25)',
-        position:       'relative',
-        zIndex:         10,
-      }}>
+      <header className="app-header">
         {/* Logo */}
         <button
           onClick={resetTest}
@@ -127,30 +141,23 @@ export default function TypingApp() {
         </button>
 
         {/* Keyboard hint strip */}
-        <div style={{
-          display:    'flex',
-          gap:        20,
-          fontSize:   11,
-          color:      'var(--text-dim)',
-          alignItems: 'center',
-        }}>
-          <span><kbd>Tab</kbd>restart</span>
-          <span><kbd>Space</kbd>next word</span>
+        <div className="header-hints">
+          {isTouchDevice ? (
+            <>
+              <span>Tap the text card to type</span>
+              <span>Use restart below for a new run</span>
+            </>
+          ) : (
+            <>
+              <span><kbd>Tab</kbd>restart</span>
+              <span><kbd>Space</kbd>next word</span>
+            </>
+          )}
         </div>
       </header>
 
       {/* ── MAIN ──────────────────────────────────────────────────────────── */}
-      <main style={{
-        flex:           1,
-        display:        'flex',
-        flexDirection:  'column',
-        alignItems:     'center',
-        justifyContent: 'center',
-        padding:        '28px 20px 44px',
-        gap:            24,
-        position:       'relative',
-        zIndex:         1,
-      }}>
+      <main className="app-main">
         <AnimatePresence mode="wait">
           {phase !== 'finished' ? (
             <motion.div
@@ -197,7 +204,28 @@ export default function TypingApp() {
               </AnimatePresence>
 
               {/* Word display area */}
-              <div style={{ width: '100%', maxWidth: 860 }}>
+              <div
+                className="word-shell"
+                onClick={focusInput}
+                onTouchStart={focusInput}
+              >
+                <input
+                  ref={inputRef}
+                  className="typing-input-proxy"
+                  value={currentInput}
+                  onChange={(e) => handleTextInput(e.target.value)}
+                  onFocus={(e) => {
+                    const len = e.target.value.length
+                    e.target.setSelectionRange(len, len)
+                  }}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  autoComplete="off"
+                  spellCheck={false}
+                  inputMode="text"
+                  enterKeyHint="done"
+                  aria-label="Typing input"
+                />
                 <WordDisplay
                   words={words}
                   curIdx={currentWordIdx}
@@ -205,6 +233,12 @@ export default function TypingApp() {
                   results={wordResults}
                   isIdle={phase === 'idle'}
                 />
+              </div>
+
+              <div className="tap-hint">
+                {isTouchDevice
+                  ? 'Tap anywhere on the text card to keep the keyboard open.'
+                  : 'Click the text area and start typing.'}
               </div>
 
               {/* Progress bar (word / quote / code modes) */}
@@ -237,7 +271,9 @@ export default function TypingApp() {
               >
                 <RestartIcon />
                 restart
-                <span style={{ opacity: 0.4, fontSize: 10, marginLeft: 2 }}>tab</span>
+                {!isTouchDevice && (
+                  <span style={{ opacity: 0.4, fontSize: 10, marginLeft: 2 }}>tab</span>
+                )}
               </button>
             </motion.div>
           ) : (
@@ -249,7 +285,11 @@ export default function TypingApp() {
               exit={{ opacity: 0 }}
             >
               {finalResults && (
-                <ResultsScreen results={finalResults} onRestart={resetTest} />
+                <ResultsScreen
+                  results={finalResults}
+                  onRestart={resetTest}
+                  showKeyboardHint={!isTouchDevice}
+                />
               )}
             </motion.div>
           )}
@@ -257,17 +297,7 @@ export default function TypingApp() {
       </main>
 
       {/* ── FOOTER ────────────────────────────────────────────────────────── */}
-      <footer style={{
-        padding:        '13px 36px',
-        borderTop:      '1px solid rgba(48, 54, 61, 0.2)',
-        display:        'flex',
-        justifyContent: 'space-between',
-        fontSize:       11,
-        color:          'var(--text-dim)',
-        fontFamily:     'Outfit, sans-serif',
-        position:       'relative',
-        zIndex:         1,
-      }}>
+      <footer className="app-footer">
         <span>TypeGym v1.0 · Open Source · MIT License</span>
         <a
           href="https://github.com/yourusername/typegym"
