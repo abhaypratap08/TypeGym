@@ -18,6 +18,7 @@
  */
 
 import { useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTypingEngine } from '@/hooks/useTypingEngine'
 import ModeBar        from './ModeBar'
@@ -102,14 +103,18 @@ export default function TypingApp() {
           <div style={{
             width:        34,
             height:       34,
-            background:   'linear-gradient(135deg, #58a6ff, #7c3aed)',
             borderRadius: 9,
-            display:      'flex',
-            alignItems:   'center',
-            justifyContent: 'center',
-            fontSize:     17,
-            boxShadow:    '0 0 18px rgba(88, 166, 255, 0.28)',
-          }}>⌨</div>
+            overflow:     'hidden',
+            boxShadow:    '0 0 18px rgba(88, 166, 255, 0.12)',
+          }}>
+            <Image
+              src="/logo.svg"
+              alt="TypeGym logo placeholder"
+              width={34}
+              height={34}
+              priority
+            />
+          </div>
           <span style={{
             fontFamily:    'Outfit, sans-serif',
             fontWeight:    700,

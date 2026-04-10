@@ -127,28 +127,6 @@ export default function WordDisplay({
 
   return (
     <div style={{ position: 'relative' }}>
-      {/* "Click to start" overlay shown while idle */}
-      {isIdle && (
-        <div style={{
-          position:       'absolute',
-          inset:          0,
-          display:        'flex',
-          alignItems:     'center',
-          justifyContent: 'center',
-          zIndex:         2,
-          pointerEvents:  'none',
-        }}>
-          <span style={{
-            fontFamily:    'Outfit, sans-serif',
-            fontSize:      14,
-            color:         'var(--text-muted)',
-            letterSpacing: '0.05em',
-          }}>
-            Start typing to begin...
-          </span>
-        </div>
-      )}
-
       {/* Words */}
       <div
         style={{
