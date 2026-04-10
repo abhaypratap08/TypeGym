@@ -17,7 +17,8 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { WORDS_LIST, QUOTES_LIST, CODE_LIST } from '@/lib/datasets'
+import { WORDS_LIST, QUOTES_LIST, CODE_SNIPPETS } from '@/lib/datasets'
+import type { CodeLanguage } from '@/lib/datasets'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ export interface FinalResults {
 
 export interface TypingEngineState {
   mode:           TestMode
+  codeLanguage:   CodeLanguage
   timeSetting:    number
   wordSetting:    number
   phase:          TestPhase
@@ -56,6 +58,7 @@ export interface TypingEngineState {
 
 export interface TypingEngineActions {
   setMode:        (m: TestMode) => void
+  setCodeLanguage: (l: CodeLanguage) => void
   setTimeSetting: (t: number) => void
   setWordSetting: (w: number) => void
   resetTest:      () => void
@@ -99,7 +102,7 @@ export function analyzeResults(results: WordResult[]): { correctChars: number; t
 
 // ─── Word generation ──────────────────────────────────────────────────────────
 
-function pickRandom<T>(arr: T[]): T {
+function pickRandom<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
@@ -117,12 +120,17 @@ function clampInput(value: string, expected: string): string {
   return value.slice(0, expected.length + 10)
 }
 
-function buildWordList(mode: TestMode, timeSetting: number, wordSetting: number): string[] {
+function buildWordList(
+  mode: TestMode,
+  timeSetting: number,
+  wordSetting: number,
+  codeLanguage: CodeLanguage,
+): string[] {
   switch (mode) {
     case 'time':  return Array.from({ length: 200 }, () => pickRandom(WORDS_LIST))
     case 'words': return Array.from({ length: wordSetting }, () => pickRandom(WORDS_LIST))
     case 'quote': return pickRandom(QUOTES_LIST).split(' ')
-    case 'code':  return pickRandom(CODE_LIST).split(' ')
+    case 'code':  return pickRandom(CODE_SNIPPETS[codeLanguage]).split(' ')
   }
 }
 
@@ -131,6 +139,7 @@ function buildWordList(mode: TestMode, timeSetting: number, wordSetting: number)
 export function useTypingEngine(): TypingEngineState & TypingEngineActions {
   // Config
   const [mode,        setModeState]  = useState<TestMode>('time')
+  const [codeLanguage, setCodeLanguageState] = useState<CodeLanguage>('javascript')
   const [timeSetting, setTimeState]  = useState(30)
   const [wordSetting, setWordState]  = useState(50)
 
@@ -147,6 +156,7 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
   // Mutable refs for stable closure access inside timer / keydown
   const refs = useRef({
     mode, timeSetting, wordSetting,
+    codeLanguage,
     phase, words, currentInput,
     wordResults, currentWordIdx,
     elapsed, timeLeft,
@@ -154,6 +164,7 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
   // Always keep refs up-to-date
   refs.current = {
     mode, timeSetting, wordSetting,
+    codeLanguage,
     phase, words, currentInput,
     wordResults, currentWordIdx,
     elapsed, timeLeft,
@@ -165,8 +176,8 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
 
   const resetTest = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current)
-    const { mode: m, timeSetting: ts, wordSetting: ws } = refs.current
-    setWords(buildWordList(m, ts, ws))
+    const { mode: m, timeSetting: ts, wordSetting: ws, codeLanguage: cl } = refs.current
+    setWords(buildWordList(m, ts, ws, cl))
     setInput('')
     setResults([])
     setWIdx(0)
@@ -177,7 +188,7 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
   }, [])
 
   // Reset when config changes
-  useEffect(() => { resetTest() }, [mode, timeSetting, wordSetting]) // eslint-disable-line
+  useEffect(() => { resetTest() }, [mode, timeSetting, wordSetting, codeLanguage]) // eslint-disable-line
 
   // ── Finish ─────────────────────────────────────────────────────────────────
 
@@ -326,17 +337,18 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
 
   // ── Config setters ─────────────────────────────────────────────────────────
 
-  const setMode        = useCallback((m: TestMode) => setModeState(m), [])
-  const setTimeSetting = useCallback((t: number)   => setTimeState(t), [])
-  const setWordSetting = useCallback((w: number)   => setWordState(w), [])
+  const setMode         = useCallback((m: TestMode) => setModeState(m), [])
+  const setCodeLanguage = useCallback((l: CodeLanguage) => setCodeLanguageState(l), [])
+  const setTimeSetting  = useCallback((t: number)   => setTimeState(t), [])
+  const setWordSetting  = useCallback((w: number)   => setWordState(w), [])
 
   return {
-    mode, timeSetting, wordSetting,
+    mode, codeLanguage, timeSetting, wordSetting,
     phase, words, currentInput, wordResults, currentWordIdx,
     timeLeft, elapsed,
     liveWPM, liveAccuracy,
     finalResults,
-    setMode, setTimeSetting, setWordSetting,
+    setMode, setCodeLanguage, setTimeSetting, setWordSetting,
     resetTest, handleKeyDown, handleTextInput,
   }
 }

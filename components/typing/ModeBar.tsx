@@ -2,25 +2,29 @@
 
 import { memo } from 'react'
 import type { TestMode } from '@/hooks/useTypingEngine'
+import type { CodeLanguage } from '@/lib/datasets'
 
 interface ModeBartProps {
   mode:        TestMode
+  codeLanguage: CodeLanguage
   timeSetting: number
   wordSetting: number
   onMode:      (m: TestMode) => void
+  onCodeLanguage: (l: CodeLanguage) => void
   onTime:      (t: number) => void
   onWord:      (w: number) => void
 }
 
 const TIME_OPTIONS = [15, 30, 60, 120]
 const WORD_OPTIONS = [25, 50, 100]
+const CODE_OPTIONS: CodeLanguage[] = ['javascript', 'python', 'java', 'c', 'cpp']
 
 /**
  * ModeBar — the test configuration toolbar.
  * Memoized since it only changes when user explicitly modifies settings.
  */
 const ModeBar = memo(function ModeBar({
-  mode, timeSetting, wordSetting, onMode, onTime, onWord,
+  mode, codeLanguage, timeSetting, wordSetting, onMode, onCodeLanguage, onTime, onWord,
 }: ModeBartProps) {
   return (
     <div style={{
@@ -80,6 +84,21 @@ const ModeBar = memo(function ModeBar({
               className={`mode-btn ${wordSetting === w ? 'active' : ''}`}
               onClick={() => onWord(w)}
             >{w}</button>
+          ))}
+        </>
+      )}
+
+      {mode === 'code' && (
+        <>
+          <div className="mode-divider" />
+          {CODE_OPTIONS.map(language => (
+            <button
+              key={language}
+              className={`mode-btn ${codeLanguage === language ? 'active' : ''}`}
+              onClick={() => onCodeLanguage(language)}
+            >
+              {language === 'cpp' ? 'c++' : language}
+            </button>
           ))}
         </>
       )}

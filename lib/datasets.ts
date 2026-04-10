@@ -84,16 +84,42 @@ export const QUOTES_LIST: string[] = [
   "Clean code always looks like it was written by someone who cares.",
 ]
 
-export const CODE_LIST: string[] = [
-  "const sum = (a, b) => a + b; const result = sum(3, 4);",
-  "function isPrime(n) { for (let i = 2; i < n; i++) if (n % i === 0) return false; return n > 1; }",
-  "const unique = arr => [...new Set(arr)]; const doubled = arr.map(x => x * 2);",
-  "async function getData(url) { const res = await fetch(url); return await res.json(); }",
-  "const memoize = fn => { const c = {}; return (...a) => c[a] ?? (c[a] = fn(...a)); };",
-  "const pipe = (...fns) => x => fns.reduce((v, f) => f(v), x);",
-  "const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };",
-  "const clamp = (val, min, max) => Math.min(Math.max(val, min), max);",
-  "const groupBy = (arr, key) => arr.reduce((acc, item) => ({ ...acc, [item[key]]: [...(acc[item[key]] ?? []), item] }), {});",
-  "function* range(start, end, step = 1) { for (let i = start; i < end; i += step) yield i; }",
-  "const retry = async (fn, n) => { try { return await fn(); } catch (e) { if (n === 1) throw e; return retry(fn, n - 1); } };",
-]
+export const CODE_SNIPPETS = {
+  javascript: [
+    "const sum = (a, b) => a + b; const result = sum(3, 4);",
+    "function isPrime(n) { for (let i = 2; i < n; i++) if (n % i === 0) return false; return n > 1; }",
+    "const unique = arr => [...new Set(arr)]; const doubled = arr.map(x => x * 2);",
+    "async function getData(url) { const res = await fetch(url); return await res.json(); }",
+    "const clamp = (val, min, max) => Math.min(Math.max(val, min), max);",
+  ],
+  python: [
+    "def fib(n): a, b = 0, 1; out = []; while len(out) < n: out.append(a); a, b = b, a + b; return out",
+    "def is_palindrome(text): cleaned = ''.join(ch.lower() for ch in text if ch.isalnum()); return cleaned == cleaned[::-1]",
+    "nums = [1, 2, 3, 4]; squared = [n * n for n in nums]",
+    "def group_by(items, key): result = {}; for item in items: result.setdefault(item[key], []).append(item); return result",
+    "def clamp(value, low, high): return max(low, min(value, high))",
+  ],
+  java: [
+    "public static int sum(int a, int b) { return a + b; } int result = sum(3, 4);",
+    "public static boolean isEven(int n) { return n % 2 == 0; }",
+    "List<Integer> nums = Arrays.asList(1, 2, 3); nums.replaceAll(n -> n * 2);",
+    "Map<String, Integer> counts = new HashMap<>(); counts.put(\"red\", counts.getOrDefault(\"red\", 0) + 1);",
+    "String reversed = new StringBuilder(\"typegym\").reverse().toString();",
+  ],
+  c: [
+    "int sum(int a, int b) { return a + b; } int result = sum(3, 4);",
+    "for (int i = 0; i < n; i++) { total += values[i]; }",
+    "char word[] = \"type\"; printf(\"%s\\n\", word);",
+    "if (count > limit) { count = limit; }",
+    "int max(int a, int b) { return a > b ? a : b; }",
+  ],
+  cpp: [
+    "int sum(int a, int b) { return a + b; } int result = sum(3, 4);",
+    "std::vector<int> nums = {1, 2, 3}; for (int &n : nums) { n *= 2; }",
+    "std::string s = \"typegym\"; std::reverse(s.begin(), s.end());",
+    "auto is_even = [](int n) { return n % 2 == 0; };",
+    "std::map<std::string, int> counts; counts[\"blue\"]++;",
+  ],
+} as const
+
+export type CodeLanguage = keyof typeof CODE_SNIPPETS

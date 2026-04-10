@@ -32,10 +32,10 @@ export default function TypingApp() {
   const [isTouchDevice, setIsTouchDevice] = useState(false)
 
   const {
-    mode, timeSetting, wordSetting,
+    mode, codeLanguage, timeSetting, wordSetting,
     phase, words, currentInput, wordResults, currentWordIdx,
     timeLeft, liveWPM, liveAccuracy, finalResults,
-    setMode, setTimeSetting, setWordSetting,
+    setMode, setCodeLanguage, setTimeSetting, setWordSetting,
     resetTest, handleKeyDown, handleTextInput,
   } = engine
 
@@ -176,9 +176,11 @@ export default function TypingApp() {
               {/* Mode selector toolbar */}
               <ModeBar
                 mode={mode}
+                codeLanguage={codeLanguage}
                 timeSetting={timeSetting}
                 wordSetting={wordSetting}
                 onMode={setMode}
+                onCodeLanguage={setCodeLanguage}
                 onTime={setTimeSetting}
                 onWord={setWordSetting}
               />
@@ -236,7 +238,9 @@ export default function TypingApp() {
               </div>
 
               <div className="tap-hint">
-                {isTouchDevice
+                {mode === 'code'
+                  ? `Preferred language: ${codeLanguage === 'cpp' ? 'C++' : codeLanguage}. Snippets are chosen randomly from that set.`
+                  : isTouchDevice
                   ? 'Tap anywhere on the text card to keep the keyboard open.'
                   : 'Click the text area and start typing.'}
               </div>
