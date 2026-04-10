@@ -87,7 +87,7 @@ export function analyzeResults(results: WordResult[]): { correctChars: number; t
   let correctChars = 0
   let totalChars   = 0
   for (const { word, typed } of results) {
-    totalChars += typed.length
+    totalChars += Math.max(word.length, typed.length)
     const len = Math.min(word.length, typed.length)
     for (let i = 0; i < len; i++) {
       if (typed[i] === word[i]) correctChars++
@@ -100,6 +100,16 @@ export function analyzeResults(results: WordResult[]): { correctChars: number; t
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
+}
+
+function extendWords(existing: string[], count: number): string[] {
+  return [...existing, ...Array.from({ length: count }, () => pickRandom(WORDS_LIST))]
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.isContentEditable) return true
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
 }
 
 function buildWordList(mode: TestMode, timeSetting: number, wordSetting: number): string[] {
@@ -215,15 +225,19 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
             wordResults: res, elapsed: el } = refs.current
 
     if (ph === 'finished') return
+    if (isEditableTarget(e.target)) return
+    if (e.ctrlKey || e.metaKey || e.altKey) return
 
     const { key } = e
 
-    // ── Space → commit current word ──────────────────────────────────────────
-    if (key === ' ') {
+    // ── Space / Enter → commit current word ──────────────────────────────────
+    if (key === ' ' || key === 'Enter') {
       e.preventDefault()
       if (ci === '') return
 
-      const word     = ws[wi]
+      const word = ws[wi]
+      if (!word) return
+
       const newRes   = [...res, { word, typed: ci }]
       const nextWIdx = wi + 1
 
@@ -232,6 +246,10 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
       setInput('')
 
       if (ph === 'idle') setPhase('active')
+
+      if (m === 'time' && nextWIdx >= ws.length - 20) {
+        setWords(prev => extendWords(prev, 100))
+      }
 
       // Check end condition for word/quote/code modes
       const isDone =
@@ -267,7 +285,8 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
   const liveAccuracy = useMemo(() => {
     const { correctChars, totalChars } = analyzeResults(wordResults)
     const cw = words[currentWordIdx] ?? ''
-    let ec = 0, et = currentInput.length
+    let ec = 0
+    const et = Math.max(cw.length, currentInput.length)
     for (let i = 0; i < currentInput.length && i < cw.length; i++) {
       if (currentInput[i] === cw[i]) ec++
     }

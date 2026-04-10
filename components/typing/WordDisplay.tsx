@@ -157,8 +157,8 @@ export default function WordDisplay({
           userSelect: 'none',
           cursor:     'text',
           minHeight:  150,
-          filter:     isIdle ? 'blur(2.5px)' : 'none',
-          transition: 'filter 0.3s ease',
+          opacity:    isIdle ? 0.92 : 1,
+          transition: 'opacity 0.2s ease',
         }}
         aria-label="Typing test text"
         role="textbox"
