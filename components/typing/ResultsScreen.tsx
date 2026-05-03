@@ -26,23 +26,13 @@ function StatCard({ label, value, color, large = false, delay = 0 }: StatCardPro
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.3, ease: 'easeOut' }}
     >
-      <div style={{
-        fontFamily:    'Outfit, sans-serif',
-        fontSize:      10,
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
-        color:         'var(--text-muted)',
-        marginBottom:  5,
-      }}>
+      <div className="result-stat-label">
         {label}
       </div>
-      <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize:   large ? 42 : 26,
-        fontWeight: 700,
-        color,
-        lineHeight: 1,
-      }}>
+      <div
+        className={`result-stat-value ${large ? 'is-large' : ''}`}
+        style={{ color }}
+      >
         {value}
       </div>
     </motion.div>
@@ -61,11 +51,11 @@ export default function ResultsScreen({
   const { wpm, accuracy, errors, correctChars, totalChars, duration } = results
 
   const perf = useMemo(() => {
-    if (wpm >= 100) return { label: 'Elite',      color: 'var(--accent-purple)' }
-    if (wpm >= 70)  return { label: 'Advanced',   color: 'var(--accent-blue)'   }
-    if (wpm >= 50)  return { label: 'Proficient', color: 'var(--accent-neon)'   }
-    if (wpm >= 30)  return { label: 'Developing', color: 'var(--accent-green)'  }
-    return               { label: 'Beginner',   color: 'var(--accent-orange)' }
+    if (wpm >= 100) return { label: 'elite pace',      color: 'var(--accent-purple)' }
+    if (wpm >= 70)  return { label: 'advanced pace',   color: 'var(--accent-blue)'   }
+    if (wpm >= 50)  return { label: 'steady pace',     color: 'var(--accent-neon)'   }
+    if (wpm >= 30)  return { label: 'building pace',   color: 'var(--accent-green)'  }
+    return               { label: 'baseline pace',   color: 'var(--accent-orange)' }
   }, [wpm])
 
   const accColor =
@@ -75,10 +65,10 @@ export default function ResultsScreen({
 
   const tip =
     accuracy < 90
-      ? '💡 Focus on accuracy first — speed will follow naturally.'
+      ? 'Focus on accuracy first. Speed will follow naturally.'
       : wpm < 40
-      ? '💡 Great accuracy! Practice daily to build lasting muscle memory.'
-      : '✨ Solid session. Consistency is the key to long-term improvement.'
+      ? 'Good accuracy. Practice daily to build lasting muscle memory.'
+      : 'Solid session. Consistency is the key to long-term improvement.'
 
   return (
     <motion.div
@@ -89,28 +79,19 @@ export default function ResultsScreen({
     >
       {/* Header row */}
       <div className="results-header">
-        <h2 style={{
-          fontFamily:    'Outfit, sans-serif',
-          fontWeight:    700,
-          fontSize:      22,
-          letterSpacing: '-0.02em',
-          color:         'var(--text-primary)',
-        }}>
-          Test Complete
+        <h2 className="result-title">
+          Session Results
         </h2>
 
         <motion.span
           initial={{ opacity: 0, x: 10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5 }}
+          className="result-badge"
           style={{
-            fontFamily: 'JetBrains Mono, monospace',
-            fontSize:   11,
-            color:      perf.color,
+            color: perf.color,
             background: `${perf.color}18`,
-            border:     `1px solid ${perf.color}30`,
-            padding:    '4px 12px',
-            borderRadius: 20,
+            border: `1px solid ${perf.color}30`,
           }}
         >
           {perf.label}
@@ -138,7 +119,7 @@ export default function ResultsScreen({
           display:        'flex',
           justifyContent: 'space-between',
           marginBottom:   8,
-          fontSize:       11,
+          fontSize:       14,
           color:          'var(--text-muted)',
           fontFamily:     'Outfit, sans-serif',
         }}>
@@ -172,7 +153,7 @@ export default function ResultsScreen({
         transition={{ delay: 0.5 }}
         style={{
           fontFamily: 'Outfit, sans-serif',
-          fontSize:   12,
+          fontSize:   15,
           color:      'var(--text-muted)',
           lineHeight: 1.6,
           marginBottom: 22,
@@ -193,7 +174,7 @@ export default function ResultsScreen({
           style={{ width: '100%', justifyContent: 'center', padding: '12px 20px' }}
         >
           <RestartIcon />
-          Try Again
+          Restart Test
           {showKeyboardHint && (
             <span style={{ opacity: 0.4, fontSize: 10, marginLeft: 2 }}>tab</span>
           )}
