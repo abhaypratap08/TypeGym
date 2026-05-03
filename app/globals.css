@@ -87,15 +87,23 @@ body {
 .app-footer {
   width: min(1360px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 12px 0 22px;
+  padding: 14px 0 24px;
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-size: 11px;
-  color: var(--text-dim);
+  font-size: 13px;
+  color: var(--text-muted);
   font-family: 'Outfit', sans-serif;
   position: relative;
   z-index: 1;
+}
+
+.app-footer a {
+  transition: color 0.16s ease;
+}
+
+.app-footer a:hover {
+  color: var(--text-secondary) !important;
 }
 
 .word-shell {
@@ -147,8 +155,9 @@ body {
 }
 
 .tap-hint {
-  font-size: 13px;
-  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  color: #7f8994;
   text-align: center;
   max-width: 860px;
   text-wrap: balance;
@@ -398,13 +407,14 @@ body {
 /* ── Restart button ── */
 .restart-btn {
   background: transparent;
-  border: 1px solid rgba(48, 54, 61, 0.6);
+  border: 1px solid rgba(139, 148, 158, 0.42);
   cursor: pointer;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 600;
   padding: 12px 28px;
   border-radius: 20px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
