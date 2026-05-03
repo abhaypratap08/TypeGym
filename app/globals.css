@@ -30,6 +30,9 @@ html, body {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -38,7 +41,7 @@ body {
 
 /* ── App shell ── */
 .app-shell {
-  min-height: 100dvh;
+  min-height: 112dvh;
   width: 100%;
   background:
     radial-gradient(circle at 50% -10%, rgba(88, 166, 255, 0.08), transparent 34rem),
@@ -48,6 +51,17 @@ body {
   position: relative;
   overflow-x: hidden;
   font-size: 18px;
+  transform: scale(0.9);
+  transform-origin: top center;
+  width: 111.111111%;
+}
+
+@supports (zoom: 1) {
+  .app-shell {
+    transform: none;
+    width: 100%;
+    zoom: 0.9;
+  }
 }
 
 .app-header {
