@@ -1,13 +1,21 @@
 'use client'
 
 import { memo, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import type { WordResult } from '@/hooks/useTypingEngine'
 
 // ─── Cursor ───────────────────────────────────────────────────────────────────
 
-/** Blinking caret — positioned inline so it flows naturally with text */
+/** Smooth caret that follows the active character using shared layout animation. */
 const Cursor = memo(function Cursor() {
-  return <span className="typing-cursor" aria-hidden="true" />
+  return (
+    <motion.span
+      layoutId="typing-caret"
+      className="typing-cursor"
+      transition={{ type: 'spring', stiffness: 760, damping: 44, mass: 0.28 }}
+      aria-hidden="true"
+    />
+  )
 })
 
 // ─── Single character ─────────────────────────────────────────────────────────
@@ -20,9 +28,9 @@ interface CharProps {
 
 const Char = memo(function Char({ ch, state, showCursor }: CharProps) {
   return (
-    <span style={{ position: 'relative' }}>
+    <span className={`typing-char char-${state}`}>
       {showCursor && <Cursor />}
-      <span className={`char-${state}`}>{ch}</span>
+      {ch}
     </span>
   )
 })
@@ -59,13 +67,11 @@ const Word = memo(function Word({ word, wordIdx, curIdx, input, results }: WordP
   return (
     <span
       className={[
+        'typing-word',
+        isCompleted ? 'word-completed' : '',
         isCurrent ? 'word-current' : '',
         isWrong   ? 'word-wrong'   : '',
       ].join(' ')}
-      style={{
-        marginRight:   '0.45em',
-        display:       'inline-block',
-      }}
     >
       {word.split('').map((ch, ci) => {
         let state: 'correct' | 'incorrect' | 'pending' = 'pending'
@@ -89,12 +95,16 @@ const Word = memo(function Word({ word, wordIdx, curIdx, input, results }: WordP
       {/* Extra chars typed beyond word length */}
       {isCurrent && input.length > word.length &&
         input.slice(word.length).split('').map((ch, i) => (
-          <span key={`extra-${i}`} className="char-extra">{ch}</span>
+          <span key={`extra-${i}`} className="typing-char char-extra">{ch}</span>
         ))
       }
 
       {/* Cursor at end when input length ≥ word length */}
-      {isCurrent && input.length >= word.length && <Cursor />}
+      {isCurrent && input.length >= word.length && (
+        <span className="typing-char cursor-anchor">
+          <Cursor />
+        </span>
+      )}
     </span>
   )
 })
