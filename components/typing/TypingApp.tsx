@@ -17,10 +17,16 @@
  *     └── ResultsScreen (visible when finished)
  */
 
-import { useEffect, useCallback, useRef, useState } from 'react'
+import { useEffect, useCallback, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useTypingEngine } from '@/hooks/useTypingEngine'
+import {
+  analyzeResults,
+  calcAccuracy,
+  calcWPM,
+  useTypingEngine,
+} from '@/hooks/useTypingEngine'
+import type { FinalResults, WordResult } from '@/hooks/useTypingEngine'
 import ModeBar        from './ModeBar'
 import WordDisplay    from './WordDisplay'
 import LiveMetrics    from './LiveMetrics'
@@ -34,9 +40,9 @@ export default function TypingApp() {
   const {
     mode, codeLanguage, timeSetting, wordSetting,
     phase, words, currentInput, wordResults, currentWordIdx,
-    timeLeft, liveWPM, liveAccuracy, finalResults,
+    timeLeft, elapsed, liveWPM, liveAccuracy, finalResults,
     setMode, setCodeLanguage, setTimeSetting, setWordSetting,
-    resetTest, handleKeyDown, handleTextInput,
+    resetTest, finishCurrentTest, handleKeyDown, handleTextInput,
   } = engine
 
   const focusInput = useCallback(() => {
@@ -71,6 +77,11 @@ export default function TypingApp() {
     focusInput()
   }, [focusInput, phase])
 
+  useEffect(() => {
+    if (mode !== 'time' || phase !== 'active' || timeLeft > 0) return
+    finishCurrentTest()
+  }, [finishCurrentTest, mode, phase, timeLeft])
+
   // ── Tab → restart (separate listener so it can preventDefault) ────────────
   useEffect(() => {
     const onTab = (e: KeyboardEvent) => {
@@ -89,6 +100,35 @@ export default function TypingApp() {
     (mode === 'words' || mode === 'quote' || mode === 'code') &&
     words.length > 0
 
+  const fallbackResults = useMemo<FinalResults>(() => {
+    const results: WordResult[] = [...wordResults]
+    const currentWord = words[currentWordIdx]
+
+    if (currentWord && currentInput !== '') {
+      results.push({ word: currentWord, typed: currentInput })
+    }
+
+    const { correctChars, totalChars } = analyzeResults(results)
+    const duration = Math.max(
+      mode === 'time' ? timeSetting : elapsed,
+      1,
+    )
+
+    return {
+      wpm: calcWPM(correctChars, duration),
+      accuracy: calcAccuracy(correctChars, totalChars),
+      errors: results.filter(r => r.typed !== r.word).length,
+      correctChars,
+      totalChars,
+      duration,
+    }
+  }, [currentInput, currentWordIdx, elapsed, mode, timeSetting, wordResults, words])
+
+  const resultsForDisplay = finalResults ?? fallbackResults
+  const showResults =
+    phase === 'finished' ||
+    (mode === 'time' && phase === 'active' && timeLeft <= 0)
+
   return (
     <div
       className="bg-grid app-shell"
@@ -96,9 +136,6 @@ export default function TypingApp() {
         fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
       }}
     >
-      {/* Ambient glow */}
-      <div className="ambient-glow" />
-
       {/* ── HEADER ────────────────────────────────────────────────────────── */}
       <header className="app-header">
         {/* Logo */}
@@ -107,7 +144,7 @@ export default function TypingApp() {
           style={{
             display:    'flex',
             alignItems: 'center',
-            gap:        10,
+            gap:        12,
             background: 'transparent',
             border:     'none',
             cursor:     'pointer',
@@ -115,26 +152,26 @@ export default function TypingApp() {
           }}
         >
           <div style={{
-            width:        34,
-            height:       34,
-            borderRadius: 9,
+            width:        42,
+            height:       42,
+            borderRadius: 10,
             overflow:     'hidden',
             boxShadow:    '0 0 18px rgba(88, 166, 255, 0.12)',
           }}>
             <Image
               src="/logo.svg"
               alt="TypeGym logo placeholder"
-              width={34}
-              height={34}
+              width={42}
+              height={42}
               priority
             />
           </div>
           <span style={{
             fontFamily:    'Outfit, sans-serif',
             fontWeight:    700,
-            fontSize:      19,
+            fontSize:      24,
             color:         'var(--text-primary)',
-            letterSpacing: '-0.01em',
+            letterSpacing: 0,
           }}>
             Type<span style={{ color: 'var(--accent-blue)' }}>Gym</span>
           </span>
@@ -158,153 +195,157 @@ export default function TypingApp() {
 
       {/* ── MAIN ──────────────────────────────────────────────────────────── */}
       <main className="app-main">
-        <AnimatePresence mode="wait">
-          {phase !== 'finished' ? (
-            <motion.div
-              key="test"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              style={{
-                display:        'flex',
-                flexDirection:  'column',
-                alignItems:     'center',
-                gap:            24,
-                width:          '100%',
-              }}
+        {!showResults ? (
+          <motion.div
+            key="test"
+            initial={false}
+            animate={{ opacity: 1 }}
+            style={{
+              display:        'flex',
+              flexDirection:  'column',
+              alignItems:     'center',
+              gap:            24,
+              width:          '100%',
+            }}
+          >
+            {/* Mode selector toolbar */}
+            <ModeBar
+              mode={mode}
+              codeLanguage={codeLanguage}
+              timeSetting={timeSetting}
+              wordSetting={wordSetting}
+              onMode={setMode}
+              onCodeLanguage={setCodeLanguage}
+              onTime={setTimeSetting}
+              onWord={setWordSetting}
+            />
+
+            {/* Live metrics — only shown while actively typing */}
+            <AnimatePresence>
+              {phase === 'active' && (
+                <motion.div
+                  key="metrics"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <LiveMetrics
+                    wpm={liveWPM}
+                    accuracy={liveAccuracy}
+                    timeLeft={timeLeft}
+                    mode={mode}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Word display area */}
+            <div
+              className={`word-shell ${phase === 'active' ? 'is-active' : 'is-idle'}`}
+              onClick={focusInput}
+              onTouchStart={focusInput}
             >
-              {/* Mode selector toolbar */}
-              <ModeBar
-                mode={mode}
-                codeLanguage={codeLanguage}
-                timeSetting={timeSetting}
-                wordSetting={wordSetting}
-                onMode={setMode}
-                onCodeLanguage={setCodeLanguage}
-                onTime={setTimeSetting}
-                onWord={setWordSetting}
+              <input
+                ref={inputRef}
+                className="typing-input-proxy"
+                value={currentInput}
+                onChange={(e) => handleTextInput(e.target.value)}
+                onFocus={(e) => {
+                  const len = e.target.value.length
+                  e.target.setSelectionRange(len, len)
+                }}
+                autoCapitalize="none"
+                autoCorrect="off"
+                autoComplete="off"
+                spellCheck={false}
+                inputMode="text"
+                enterKeyHint="done"
+                aria-label="Typing input"
               />
+              <WordDisplay
+                words={words}
+                curIdx={currentWordIdx}
+                input={currentInput}
+                results={wordResults}
+                isIdle={phase === 'idle'}
+              />
+            </div>
 
-              {/* Live metrics — only shown while actively typing */}
-              <AnimatePresence>
-                {phase === 'active' && (
+            <div className="tap-hint">
+              {mode === 'code'
+                ? `Preferred language: ${codeLanguage === 'cpp' ? 'C++' : codeLanguage}. Snippets are chosen randomly from that set.`
+                : isTouchDevice
+                ? 'Tap anywhere on the text card to keep the keyboard open.'
+                : 'Click the text area and start typing.'}
+            </div>
+
+            {/* Progress bar (word / quote / code modes) */}
+            {showProgress && (
+              <div style={{ width: '100%', maxWidth: 860 }}>
+                <div style={{
+                  height:       2,
+                  background:   'rgba(48, 54, 61, 0.4)',
+                  borderRadius: 2,
+                  overflow:     'hidden',
+                }}>
                   <motion.div
-                    key="metrics"
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <LiveMetrics
-                      wpm={liveWPM}
-                      accuracy={liveAccuracy}
-                      timeLeft={timeLeft}
-                      mode={mode}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Word display area */}
-              <div
-                className="word-shell"
-                onClick={focusInput}
-                onTouchStart={focusInput}
-              >
-                <input
-                  ref={inputRef}
-                  className="typing-input-proxy"
-                  value={currentInput}
-                  onChange={(e) => handleTextInput(e.target.value)}
-                  onFocus={(e) => {
-                    const len = e.target.value.length
-                    e.target.setSelectionRange(len, len)
-                  }}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  autoComplete="off"
-                  spellCheck={false}
-                  inputMode="text"
-                  enterKeyHint="done"
-                  aria-label="Typing input"
-                />
-                <WordDisplay
-                  words={words}
-                  curIdx={currentWordIdx}
-                  input={currentInput}
-                  results={wordResults}
-                  isIdle={phase === 'idle'}
-                />
-              </div>
-
-              <div className="tap-hint">
-                {mode === 'code'
-                  ? `Preferred language: ${codeLanguage === 'cpp' ? 'C++' : codeLanguage}. Snippets are chosen randomly from that set.`
-                  : isTouchDevice
-                  ? 'Tap anywhere on the text card to keep the keyboard open.'
-                  : 'Click the text area and start typing.'}
-              </div>
-
-              {/* Progress bar (word / quote / code modes) */}
-              {showProgress && (
-                <div style={{ width: '100%', maxWidth: 860 }}>
-                  <div style={{
-                    height:       2,
-                    background:   'rgba(48, 54, 61, 0.4)',
-                    borderRadius: 2,
-                    overflow:     'hidden',
-                  }}>
-                    <motion.div
-                      className="progress-fill"
-                      style={{
-                        height:       '100%',
-                        background:   'var(--accent-blue)',
-                        borderRadius: 2,
-                        width:        `${Math.min(progressPct, 100)}%`,
-                      }}
-                      transition={{ duration: 0.1 }}
-                    />
-                  </div>
+                    className="progress-fill"
+                    style={{
+                      height:       '100%',
+                      background:   'var(--accent-blue)',
+                      borderRadius: 2,
+                      width:        `${Math.min(progressPct, 100)}%`,
+                    }}
+                    transition={{ duration: 0.1 }}
+                  />
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Restart button */}
-              <button
-                className="restart-btn"
-                onClick={(e) => { e.stopPropagation(); resetTest() }}
-              >
-                <RestartIcon />
-                restart
-                {!isTouchDevice && (
-                  <span style={{ opacity: 0.4, fontSize: 10, marginLeft: 2 }}>tab</span>
-                )}
-              </button>
-            </motion.div>
-          ) : (
-            /* Results screen */
-            <motion.div
-              key="results"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            {/* Restart button */}
+            <button
+              className="restart-btn"
+              onClick={(e) => { e.stopPropagation(); resetTest() }}
             >
-              {finalResults && (
-                <ResultsScreen
-                  results={finalResults}
-                  onRestart={resetTest}
-                  showKeyboardHint={!isTouchDevice}
-                />
+              <RestartIcon />
+              restart
+              {!isTouchDevice && (
+                <span style={{ opacity: 0.4, fontSize: 10, marginLeft: 2 }}>tab</span>
               )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </button>
+          </motion.div>
+        ) : (
+          /* Results screen */
+          <motion.div
+            key="results"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <ResultsScreen
+              results={resultsForDisplay}
+              onRestart={resetTest}
+              showKeyboardHint={!isTouchDevice}
+            />
+          </motion.div>
+        )}
       </main>
 
       {/* ── FOOTER ────────────────────────────────────────────────────────── */}
       <footer className="app-footer">
-        <span>TypeGym v1.0 · Open Source · MIT License</span>
         <a
-          href="https://github.com/yourusername/typegym"
+          href="https://github.com/abhaypratap08/TypeGym/blob/main/documentation.md"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color:          'var(--text-dim)',
+            textDecoration: 'none',
+          }}
+        >
+          TypeGym v1.0 · Open Source · MIT License
+        </a>
+        <a
+          href="https://github.com/abhaypratap08/TypeGym"
           target="_blank"
           rel="noopener noreferrer"
           style={{
