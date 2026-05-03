@@ -6,4 +6,4 @@ Fast feedback, clean flow, and just enough challenge to keep you locked in.
 
 If anything feels broken, weird, or off, please register an issue.
 
-## LIVE @ https://typegym-abhaypratap08s-projects.vercel.app/
+## LIVE @ https://typegym-io.vercel.app
