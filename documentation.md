@@ -215,4 +215,6 @@ For pull requests, keep changes focused and describe the behavior being changed.
 
 ## License
 
-MIT © Abhay Pratap
+MIT © Abhay Pratap Singh
+
+GitHub: https://github.com/abhaypratap08
