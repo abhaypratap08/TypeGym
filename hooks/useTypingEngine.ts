@@ -62,6 +62,7 @@ export interface TypingEngineActions {
   setTimeSetting: (t: number) => void
   setWordSetting: (w: number) => void
   resetTest:      () => void
+  finishCurrentTest: () => void
   handleKeyDown:  (e: KeyboardEvent) => void
   handleTextInput: (value: string) => void
 }
@@ -134,6 +135,21 @@ function buildWordList(
   }
 }
 
+function buildInitialWordList(): string[] {
+  return WORDS_LIST.slice(0, 200)
+}
+
+function collectResultsForFinish(
+  results: WordResult[],
+  words: string[],
+  currentWordIdx: number,
+  currentInput: string,
+): WordResult[] {
+  const currentWord = words[currentWordIdx]
+  if (!currentWord || currentInput === '') return results
+  return [...results, { word: currentWord, typed: currentInput }]
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useTypingEngine(): TypingEngineState & TypingEngineActions {
@@ -145,7 +161,7 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
 
   // Test state
   const [phase,          setPhase]   = useState<TestPhase>('idle')
-  const [words,          setWords]   = useState<string[]>([])
+  const [words,          setWords]   = useState<string[]>(buildInitialWordList)
   const [currentInput,   setInput]   = useState('')
   const [wordResults,    setResults] = useState<WordResult[]>([])
   const [currentWordIdx, setWIdx]    = useState(0)
@@ -171,11 +187,35 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
   }
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const finishTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const finishWorkerRef = useRef<Worker | null>(null)
+  const didFinishRef = useRef(false)
+  const startedAtRef = useRef<number | null>(null)
+  const deadlineRef = useRef<number | null>(null)
+
+  const clearTimers = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+    if (finishTimeoutRef.current) {
+      clearTimeout(finishTimeoutRef.current)
+      finishTimeoutRef.current = null
+    }
+    if (finishWorkerRef.current) {
+      const worker = finishWorkerRef.current
+      finishWorkerRef.current = null
+      worker.terminate()
+    }
+  }, [])
 
   // ── Reset ──────────────────────────────────────────────────────────────────
 
   const resetTest = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current)
+    clearTimers()
+    didFinishRef.current = false
+    startedAtRef.current = null
+    deadlineRef.current = null
     const { mode: m, timeSetting: ts, wordSetting: ws, codeLanguage: cl } = refs.current
     setWords(buildWordList(m, ts, ws, cl))
     setInput('')
@@ -185,7 +225,7 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
     setFinal(null)
     setElapsed(0)
     setTL(ts)
-  }, [])
+  }, [clearTimers])
 
   // Reset when config changes
   useEffect(() => { resetTest() }, [mode, timeSetting, wordSetting, codeLanguage]) // eslint-disable-line
@@ -193,9 +233,8 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
   // ── Finish ─────────────────────────────────────────────────────────────────
 
   const finishTest = useCallback((results: WordResult[], seconds: number) => {
-    if (timerRef.current) clearInterval(timerRef.current)
-    if (refs.current.phase === 'finished') return
-    setPhase('finished')
+    if (didFinishRef.current) return
+    didFinishRef.current = true
 
     const { correctChars, totalChars } = analyzeResults(results)
     const dur = Math.max(seconds, 1)
@@ -208,7 +247,28 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
       totalChars,
       duration:     dur,
     })
-  }, [])
+    setInput('')
+    if (refs.current.mode === 'time') setTL(0)
+    setPhase('finished')
+    clearTimers()
+    startedAtRef.current = null
+    deadlineRef.current = null
+  }, [clearTimers])
+
+  const finishCurrentTest = useCallback(() => {
+    const {
+      wordResults: res,
+      words: ws,
+      currentWordIdx: wi,
+      currentInput: ci,
+      elapsed: el,
+      timeSetting: ts,
+      mode: m,
+    } = refs.current
+
+    const results = collectResultsForFinish(res, ws, wi, ci)
+    finishTest(results, Math.max(m === 'time' ? ts : el, 1))
+  }, [finishTest])
 
   const commitWord = useCallback((typed: string) => {
     const { phase: ph, words: ws, currentWordIdx: wi, mode: m, wordSetting: wset,
@@ -264,23 +324,59 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
   useEffect(() => {
     if (phase !== 'active') return
 
-    // Snapshot counters into local mutables to avoid closure staleness
-    let e  = refs.current.elapsed
-    let tl = refs.current.timeLeft
     const modeSnap = refs.current.mode
+    const now = Date.now()
+
+    if (startedAtRef.current === null) {
+      startedAtRef.current = now
+    }
+
+    if (modeSnap === 'time' && deadlineRef.current === null) {
+      deadlineRef.current = now + refs.current.timeLeft * 1000
+    }
+
+    const startedAt = startedAtRef.current
+    const deadline = deadlineRef.current ?? now
+
+    if (modeSnap === 'time') {
+      const fallbackDelay = Math.max(deadline - now, 0) + 1500
+
+      finishTimeoutRef.current = setTimeout(() => {
+        finishCurrentTest()
+      }, fallbackDelay)
+
+      if (typeof Worker !== 'undefined') {
+        const workerUrl = URL.createObjectURL(new Blob([
+          'let timeoutId; onmessage = (event) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => postMessage("finish"), event.data); };',
+        ], { type: 'text/javascript' }))
+
+        const worker = new Worker(workerUrl)
+        URL.revokeObjectURL(workerUrl)
+        worker.onmessage = () => finishCurrentTest()
+        worker.postMessage(fallbackDelay)
+        finishWorkerRef.current = worker
+      }
+    }
 
     timerRef.current = setInterval(() => {
-      e  += 1
-      tl -= 1
-      setElapsed(e)
-      if (modeSnap === 'time') {
-        setTL(tl)
-        if (tl <= 0) finishTest(refs.current.wordResults, e)
-      }
-    }, 1000)
+      const secondsElapsed = Math.max(1, Math.floor((Date.now() - startedAt) / 1000))
+      setElapsed(secondsElapsed)
 
-    return () => { if (timerRef.current) clearInterval(timerRef.current) }
-  }, [phase, finishTest])
+      if (modeSnap === 'time') {
+        const next = Math.max(Math.ceil((deadline - Date.now()) / 1000), 0)
+        setTL(next)
+        if (next <= 0) finishCurrentTest()
+      }
+    }, 250)
+
+    return clearTimers
+  }, [phase, finishCurrentTest])
+
+  useEffect(() => {
+    if (phase !== 'active' || mode !== 'time' || timeLeft > 0) return
+
+    finishCurrentTest()
+  }, [phase, mode, timeLeft, finishCurrentTest])
 
   // ── Keyboard handler (the hot path — keep allocations minimal) ─────────────
 
@@ -349,6 +445,6 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
     liveWPM, liveAccuracy,
     finalResults,
     setMode, setCodeLanguage, setTimeSetting, setWordSetting,
-    resetTest, handleKeyDown, handleTextInput,
+    resetTest, finishCurrentTest, handleKeyDown, handleTextInput,
   }
 }
