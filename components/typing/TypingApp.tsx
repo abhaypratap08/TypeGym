@@ -311,7 +311,12 @@ export default function TypingApp() {
               <RestartIcon />
               restart
               {!isTouchDevice && (
-                <span style={{ opacity: 0.4, fontSize: 10, marginLeft: 2 }}>tab</span>
+                <span style={{
+                  color:      'var(--text-secondary)',
+                  fontSize:   12,
+                  fontWeight: 600,
+                  marginLeft: 3,
+                }}>tab</span>
               )}
             </button>
           </motion.div>
@@ -338,8 +343,9 @@ export default function TypingApp() {
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            color:          'var(--text-dim)',
+            color:          'var(--text-muted)',
             textDecoration: 'none',
+            fontWeight:     500,
           }}
         >
           TypeGym v1.0 · Open Source · MIT License
@@ -349,11 +355,12 @@ export default function TypingApp() {
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            color:          'var(--text-dim)',
+            color:          'var(--text-muted)',
             textDecoration: 'none',
             display:        'flex',
             alignItems:     'center',
             gap:            5,
+            fontWeight:     500,
           }}
         >
           <GitHubIcon />
