@@ -27,38 +27,27 @@ const ModeBar = memo(function ModeBar({
   mode, codeLanguage, timeSetting, wordSetting, onMode, onCodeLanguage, onTime, onWord,
 }: ModeBartProps) {
   return (
-    <div style={{
-      display:        'flex',
-      alignItems:     'center',
-      gap:            2,
-      background:     'rgba(22, 27, 34, 0.8)',
-      border:         '1px solid rgba(48, 54, 61, 0.45)',
-      borderRadius:   12,
-      padding:        '5px 8px',
-      backdropFilter: 'blur(8px)',
-      flexWrap:       'wrap',
-      justifyContent: 'center',
-    }}>
+    <div className="mode-bar">
       {/* Primary mode buttons */}
       <button
         className={`mode-btn ${mode === 'time' ? 'active' : ''}`}
         onClick={() => onMode('time')}
-      >⏱ time</button>
+      >time</button>
 
       <button
         className={`mode-btn ${mode === 'words' ? 'active' : ''}`}
         onClick={() => onMode('words')}
-      ># words</button>
+      >words</button>
 
       <button
         className={`mode-btn ${mode === 'quote' ? 'active' : ''}`}
         onClick={() => onMode('quote')}
-      >&quot; quote</button>
+      >quote</button>
 
       <button
         className={`mode-btn ${mode === 'code' ? 'active' : ''}`}
         onClick={() => onMode('code')}
-      >{`</>`} code</button>
+      >code</button>
 
       {/* Time sub-options */}
       {mode === 'time' && (
