@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import Pusher from 'pusher-js'
 
 export interface RoomPlayer {
   id:       string
@@ -89,91 +88,109 @@ export function useRoom(roomCode: string, playerId: string, playerName: string, 
   }, [channel])
 
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pusherRef = useRef<any>(null)
 
   useEffect(() => {
     if (!PUSHER_KEY) return
+    if (typeof window === 'undefined') return
 
-    const pusher = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER })
-    const ch = pusher.subscribe(channel)
 
-    ch.bind('player-join', (player: RoomPlayer) => {
-      setState(prev => {
-        if (prev.players.find(p => p.id === player.id)) return prev
-        if (prev.players.length >= 5) return prev
-        return { ...prev, players: [...prev.players, player] }
-      })
-      // Re-announce self so the new joiner sees us too
-      if (player.id !== playerId) {
-        setTimeout(() => {
-          push(channel, 'player-join', {
-            id: playerId,
-            name: playerName.trim().slice(0, 24),
-            color: playerColor,
-            progress: stateRef.current.players.find(p => p.id === playerId)?.progress ?? 0,
-            wpm: stateRef.current.players.find(p => p.id === playerId)?.wpm ?? 0,
-            finished: stateRef.current.players.find(p => p.id === playerId)?.finished ?? false,
+    // Load pusher only on the client at runtime to avoid server-side build issues
+    (async () => {
+      try {
+        const mod = await import('pusher-js')
+        const PusherLib = (mod && (mod as any).default) ? (mod as any).default : mod
+        pusherRef.current = new PusherLib(PUSHER_KEY, { cluster: PUSHER_CLUSTER })
+        const chLocal = pusherRef.current.subscribe(channel)
+
+        chLocal?.bind('player-join', (player: RoomPlayer) => {
+          setState(prev => {
+            if (prev.players.find(p => p.id === player.id)) return prev
+            if (prev.players.length >= 5) return prev
+            return { ...prev, players: [...prev.players, player] }
           })
-        }, 300)
-      }
-    })
-
-    ch.bind('player-progress', ({ id, progress, wpm }: { id: string; progress: number; wpm: number }) => {
-      setState(prev => ({
-        ...prev,
-        players: prev.players.map(p => p.id === id ? { ...p, progress, wpm } : p),
-      }))
-    })
-
-    ch.bind('player-finish', ({ id, wpm }: { id: string; wpm: number }) => {
-      setState(prev => {
-        const updated = prev.players.map(p => p.id === id ? { ...p, finished: true, wpm, progress: 1 } : p)
-        const winnerId = prev.winnerId ?? id
-        const allDone  = updated.every(p => p.finished)
-        return { ...prev, players: updated, winnerId, phase: allDone ? 'finished' : prev.phase }
-      })
-    })
-
-    ch.bind('race-start', ({ timeLimit }: { timeLimit: number }) => {
-      if (countdownRef.current) {
-        clearInterval(countdownRef.current)
-        countdownRef.current = null
-      }
-      let count = 3
-      setState(prev => ({ ...prev, phase: 'countdown', countdown: count, timeLimit, timeLeft: timeLimit }))
-      countdownRef.current = setInterval(() => {
-        count--
-        if (count <= 0) {
-          if (countdownRef.current) clearInterval(countdownRef.current)
-          countdownRef.current = null
-          setState(prev => ({ ...prev, phase: 'racing', countdown: 0 }))
-          if (timeLimit > 0) {
-            let left = timeLimit
-            const tick = setInterval(() => {
-              left--
-              setState(prev => {
-                if (prev.phase !== 'racing') { clearInterval(tick); return prev }
-                if (left <= 0) { clearInterval(tick); return { ...prev, timeLeft: 0, phase: 'finished' } }
-                return { ...prev, timeLeft: left }
+          // Re-announce self so the new joiner sees us too
+          if (player.id !== playerId) {
+            setTimeout(() => {
+              push(channel, 'player-join', {
+                id: playerId,
+                name: playerName.trim().slice(0, 24),
+                color: playerColor,
+                progress: stateRef.current.players.find(p => p.id === playerId)?.progress ?? 0,
+                wpm: stateRef.current.players.find(p => p.id === playerId)?.wpm ?? 0,
+                finished: stateRef.current.players.find(p => p.id === playerId)?.finished ?? false,
               })
-            }, 1000)
+            }, 300)
           }
-        } else {
-          setState(prev => ({ ...prev, countdown: count }))
-        }
-      }, 1000)
-    })
+        })
 
-    ch.bind('pusher:subscription_succeeded', () => {
-      announce()
-    })
+        chLocal?.bind('player-progress', ({ id, progress, wpm }: { id: string; progress: number; wpm: number }) => {
+          setState(prev => ({
+            ...prev,
+            players: prev.players.map(p => p.id === id ? { ...p, progress, wpm } : p),
+          }))
+        })
+
+        chLocal?.bind('player-finish', ({ id, wpm }: { id: string; wpm: number }) => {
+          setState(prev => {
+            const updated = prev.players.map(p => p.id === id ? { ...p, finished: true, wpm, progress: 1 } : p)
+            const winnerId = prev.winnerId ?? id
+            const allDone  = updated.every(p => p.finished)
+            return { ...prev, players: updated, winnerId, phase: allDone ? 'finished' : prev.phase }
+          })
+        })
+
+        chLocal?.bind('race-start', ({ timeLimit }: { timeLimit: number }) => {
+          if (countdownRef.current) {
+            clearInterval(countdownRef.current)
+            countdownRef.current = null
+          }
+          let count = 3
+          setState(prev => ({ ...prev, phase: 'countdown', countdown: count, timeLimit, timeLeft: timeLimit }))
+          countdownRef.current = setInterval(() => {
+            count--
+            if (count <= 0) {
+              if (countdownRef.current) clearInterval(countdownRef.current)
+              countdownRef.current = null
+              setState(prev => ({ ...prev, phase: 'racing', countdown: 0 }))
+              if (timeLimit > 0) {
+                let left = timeLimit
+                const tick = setInterval(() => {
+                  left--
+                  setState(prev => {
+                    if (prev.phase !== 'racing') { clearInterval(tick); return prev }
+                    if (left <= 0) { clearInterval(tick); return { ...prev, timeLeft: 0, phase: 'finished' } }
+                    return { ...prev, timeLeft: left }
+                  })
+                }, 1000)
+              }
+            } else {
+              setState(prev => ({ ...prev, countdown: count }))
+            }
+          }, 1000)
+        })
+
+        chLocal?.bind('pusher:subscription_succeeded', () => {
+          announce()
+        })
+      } catch (e) {
+        console.warn('[useRoom] Failed to load pusher-js:', e)
+      }
+    })()
 
     return () => {
       if (countdownRef.current) {
         clearInterval(countdownRef.current)
         countdownRef.current = null
       }
-      pusher.unsubscribe(channel)
-      pusher.disconnect()
+      try {
+        if (pusherRef.current) {
+          pusherRef.current.unsubscribe(channel)
+          pusherRef.current.disconnect()
+        }
+      } catch (e) {
+        // ignore
+      }
     }
   }, [channel, announce])
 
