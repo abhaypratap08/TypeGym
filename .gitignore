@@ -24,7 +24,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Editor
+# Editor / IDE
 .DS_Store
 *.pem
 .idea/
@@ -32,9 +32,12 @@ yarn-error.log*
 
 # Vercel
 .vercel
+
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Scratch / temp files
 secrets.txt
 replacements.txt
-.kiro/
 TypeGym.txt

@@ -122,7 +122,7 @@ const PlayerLane = memo(function PlayerLane({ player, isSelf, isWinner, compact 
         }} transition={{ duration: 0.3 }} />
         <motion.div style={{
           position: 'absolute',
-          left: `calc(${pct}% - 16px)`,
+          left: `max(0px, calc(${pct}% - 16px))`,
           top: '50%', transform: 'translateY(-50%)',
         }} transition={{ duration: 0.3 }}>
           <PacMan color={colorHex} eating={eating} />

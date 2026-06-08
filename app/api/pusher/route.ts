@@ -3,6 +3,20 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const MAX_BODY_BYTES = 12_000
 
+// Simple in-memory rate limiter: 30 requests per 10 seconds per IP
+const ratemap = new Map<string, { count: number; reset: number }>()
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const entry = ratemap.get(ip)
+  if (!entry || now > entry.reset) {
+    ratemap.set(ip, { count: 1, reset: now + 10_000 })
+    return false
+  }
+  if (entry.count >= 30) return true
+  entry.count++
+  return false
+}
+
 const ALLOWED_EVENTS = new Set([
   'player-join',
   'player-progress',
@@ -25,9 +39,12 @@ function badRequest(message: string) {
 function validateEventPayload(event: string, data: unknown): string | null {
   switch (event) {
     case 'race-start':
-      if (data === undefined) return null
-      if (isPlainObject(data) && Object.keys(data).length === 0) return null
-      return 'race-start payload must be an empty object'
+      if (!isPlainObject(data)) return null
+      if ('timeLimit' in data) {
+        const tl = data.timeLimit
+        if (typeof tl !== 'number' || !Number.isFinite(tl) || tl < 10 || tl > 300) return 'invalid timeLimit'
+      }
+      return null
 
     case 'player-join': {
       if (!isPlainObject(data)) return 'player-join data must be an object'
@@ -78,6 +95,11 @@ function getPusher(): Pusher | null {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (isRateLimited(ip)) {
+    return NextResponse.json({ ok: false, error: 'Too many requests' }, { status: 429 })
+  }
+
   const triggerSecret = process.env.TYPEGYM_PUSHER_TRIGGER_SECRET
   if (triggerSecret) {
     const sent = req.headers.get('x-typegym-pusher-trigger') ?? ''

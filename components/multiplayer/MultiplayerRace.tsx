@@ -28,7 +28,7 @@ interface Props {
 
 export default function MultiplayerRace({ roomCode, playerName, playerColor, isHost, onLeave }: Props) {
   const playerId = useRef(getPlayerId()).current
-  const { state, emitProgress, emitFinish, startRace } = useRoom(roomCode, playerId, playerName, playerColor, isHost)
+  const { state, emitProgress, emitFinish, startRace, forceFinish } = useRoom(roomCode, playerId, playerName, playerColor, isHost)
   const engine = useTypingEngine()
   const { enterCustomWordRace, exitCustomWordRace } = engine
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -62,16 +62,25 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
       setRaceStarted(true)
       inputRef.current?.focus()
     }
-  }, [phase])
+    if (phase === 'finished' && engine.phase === 'active') {
+      engine.finishCurrentTest()
+    }
+  }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Safety net: if timeLeft hits 0 and phase is still racing, force finish
+  useEffect(() => {
+    if (phase === 'racing' && state.timeLeft === 0) {
+      forceFinish()
+    }
+  }, [phase, state.timeLeft, forceFinish])
 
   useEffect(() => {
+    if (!raceStarted) return
     const len = engine.wordResults.length
-    if (len > prevWordCount.current && raceStarted) {
-      prevWordCount.current = len
-      const progress = len / Math.max(engine.words.length, 1)
-      emitProgress(progress, engine.liveWPM)
-    }
-  }, [engine.wordResults.length, engine.liveWPM, engine.words.length, emitProgress, raceStarted])
+    prevWordCount.current = len
+    const progress = len / Math.max(engine.words.length, 1)
+    emitProgress(progress, engine.liveWPM)
+  }, [engine.liveWPM]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (engine.phase !== 'finished' || !raceStarted || finishEmittedRef.current) return
@@ -139,17 +148,16 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
       />
 
       <main className="app-main">
-        <AnimatePresence mode="wait">
-          {showWinner ? (
-            <motion.div key="winner" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <WinnerScreen
-                players={state.players}
-                winnerId={state.winnerId!}
-                selfId={playerId}
-                onPlayAgain={handleLeave}
-              />
-            </motion.div>
-          ) : (
+        {showWinner ? (
+          <motion.div key="winner" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <WinnerScreen
+              players={state.players}
+              winnerId={state.winnerId!}
+              selfId={playerId}
+              onPlayAgain={handleLeave}
+            />
+          </motion.div>
+        ) : (
             <motion.div
               key="race"
               className="test-layout"
@@ -179,6 +187,19 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
               </AnimatePresence>
 
               <div className="mp-lanes-panel">
+                {phase === 'racing' && state.timeLimit > 0 && (
+                  <div style={{
+                    textAlign: 'right',
+                    fontFamily: 'var(--font-jetbrains-mono), monospace',
+                    fontSize: 20,
+                    fontWeight: 700,
+                    color: state.timeLeft <= 10 ? 'var(--accent-red)' : 'var(--text-secondary)',
+                    marginBottom: 8,
+                    transition: 'color 0.3s',
+                  }}>
+                    {state.timeLeft}s
+                  </div>
+                )}
                 {state.players.length === 0 ? (
                   <div className="mp-tap-hint" style={{ padding: '12px 0' }}>
                     Waiting for players to join…
@@ -270,7 +291,6 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
               )}
             </motion.div>
           )}
-        </AnimatePresence>
       </main>
 
       <MultiplayerFooter />
