@@ -26,6 +26,7 @@ import WordDisplay    from './WordDisplay'
 import LiveMetrics    from './LiveMetrics'
 import ResultsScreen  from './ResultsScreen'
 import { RestartIcon, SiteFooter } from '@/components/icons'
+import { useTheme }   from '@/hooks/useTheme'
 
 // ── Traffic light button ──────────────────────────────────────────────────────
 
@@ -37,6 +38,10 @@ export default function TypingApp() {
   const engine = useTypingEngine()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [isTouchDevice, setIsTouchDevice] = useState(false)
+  const { theme, toggle: toggleTheme } = useTheme()
+
+  // Dock theme button ref for reveal origin
+  const dockThemeBtnRef = useRef<HTMLButtonElement>(null)
 
   const {
     mode, codeLanguage, timeSetting, wordSetting,
@@ -326,6 +331,42 @@ export default function TypingApp() {
           {/* Restart */}
           <button className="dock-btn" title="Restart test (Tab)" onClick={resetTest}>
             <RestartIcon />
+          </button>
+
+          <div className="dock-divider" />
+
+          {/* Theme — dock-native button so dock-btn sizing/shape takes full effect */}
+          <button
+            ref={dockThemeBtnRef}
+            className="dock-btn"
+            title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            onClick={() => {
+              const rect = dockThemeBtnRef.current?.getBoundingClientRect()
+              const x = rect ? rect.left + rect.width  / 2 : window.innerWidth  / 2
+              const y = rect ? rect.top  + rect.height / 2 : window.innerHeight / 2
+              toggleTheme(x, y)
+            }}
+          >
+            {theme === 'dark' ? (
+              // ☀ sun — shown in dark mode (click to go light)
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1"  x2="12" y2="3"  />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22"  y1="4.22"  x2="5.64"  y2="5.64"  />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1"  y1="12" x2="3"  y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22"  y1="19.78" x2="5.64"  y2="18.36" />
+                <line x1="18.36" y1="5.64"  x2="19.78" y2="4.22"  />
+              </svg>
+            ) : (
+              // ☾ moon — shown in light mode (click to go dark)
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            )}
           </button>
         </div>
       </div>

@@ -87,7 +87,7 @@ export default function WinnerScreen({ players, winnerId, selfId, onPlayAgain }:
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.32, ease: 'easeOut' }}
         style={{
-          maxWidth: 480, width: '100%', textAlign: 'center',
+          maxWidth: 600, width: '100%', textAlign: 'center',
           borderColor: `${winnerColor}33`,
         }}
       >

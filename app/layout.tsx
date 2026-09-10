@@ -43,6 +43,18 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/*
+          Blocking inline script: reads localStorage / prefers-color-scheme
+          and applies data-theme="dark"|"light" before the first paint.
+          This prevents the flash-of-wrong-theme on hard reload.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem('tg-theme');if(s==='dark'||s==='light'){document.documentElement.setAttribute('data-theme',s);return;}if(window.matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className={`${geist.variable} ${geistMono.variable} ${jetBrainsMono.variable}`}>
         {children}
       </body>

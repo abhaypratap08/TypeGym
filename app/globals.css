@@ -144,12 +144,17 @@ body::before {
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* Center the floating window vertically in the wallpaper */
+  justify-content: center;
+  gap: 16px;
+  padding: 28px 0;
 }
 
 /* The actual "window" that floats above the wallpaper */
 .app-window {
-  width: min(900px, calc(100% - 40px));
-  margin: 32px auto 0;
+  width: clamp(680px, 70vw, 1400px);
+  /* Symmetric vertical clearance — window floats in the middle of the wallpaper */
+  margin: 0 auto;
   background: var(--surface-window);
   backdrop-filter: blur(var(--blur-window)) saturate(1.18);
   -webkit-backdrop-filter: blur(var(--blur-window)) saturate(1.18);
@@ -159,7 +164,10 @@ body::before {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  flex: 1;
+  /* Grow to fill available shell height on content-heavy pages (typing),
+     but shrink-wrap on content-light pages (lobby, winner screen) */
+  flex: 1 1 auto;
+  min-height: min(82dvh, 640px);
 }
 
 /* Legacy .bg-grid compat — transparent on new design */
@@ -290,7 +298,7 @@ body::before {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 28px 28px 24px;
+  padding: 32px 40px 28px;
   gap: 18px;
   position: relative;
   z-index: 1;
@@ -362,17 +370,17 @@ body::before {
 .word-display {
   position: relative;
   z-index: 1;
-  padding: 32px 36px 34px;
+  padding: 36px 48px 38px;
 }
 
 .word-display-text {
   font-family: var(--font-geist-mono), var(--font-jetbrains-mono), 'SF Mono', monospace;
-  font-size: 22px;
+  font-size: 24px;
   line-height: 2.0;
   letter-spacing: -0.01em;
   user-select: none;
   cursor: text;
-  height: clamp(176px, 21dvh, 220px);
+  height: clamp(180px, 22dvh, 230px);
   overflow: hidden;
   color: var(--ink-dim);
 }
@@ -608,8 +616,8 @@ body::before {
   -webkit-backdrop-filter: blur(var(--blur-window)) saturate(1.15);
   border: 1px solid var(--border-window);
   border-radius: var(--r-panel);
-  padding: 40px 44px;
-  max-width: 680px;
+  padding: 40px 48px;
+  max-width: 860px;
   width: 100%;
   box-shadow: var(--shadow-panel);
 }
@@ -871,7 +879,7 @@ kbd {
   border: 1px solid var(--border-window);
   border-radius: var(--r-panel);
   padding: 36px 40px;
-  max-width: 480px;
+  max-width: 560px;
   width: 100%;
   box-shadow: var(--shadow-panel);
 }
@@ -1085,8 +1093,8 @@ kbd {
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 900px) {
   .app-window {
-    width: calc(100% - 24px);
-    margin: 16px auto 0;
+    width: calc(100% - 32px);
+    margin: 0 auto;
     border-radius: 20px;
   }
 
@@ -1283,5 +1291,284 @@ kbd {
   .mode-bar-primary .mode-btn,
   .mode-bar-sub .mode-btn {
     font-size: 11px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NORDIC DARK THEME
+   Applied when <html data-theme="dark">.
+
+   Palette:
+     #dde2e3  (221,226,227)  — cool off-white   → primary ink / light surfaces
+     #9aacb8  (154,172,184)  — muted blue-gray  → secondary ink, borders
+     #b37c57  (179,124,87)   — warm amber       → primary accent (replaces teal)
+     #3c455c  (60,69,92)     — deep slate navy  → surface panels & window
+     #60412b  (96,65,43)     — dark coffee      → wallpaper base / deepest bg
+
+   Approach: teal/coral are overridden with Nordic amber (#b37c57) as the
+   primary accent and the muted blue-gray (#9aacb8) as the secondary tone.
+   ═══════════════════════════════════════════════════════════════════════════ */
+[data-theme="dark"] {
+  /* ── Wallpaper ── */
+  --wallpaper-base:          #2b1f16;   /* deep coffee-brown base */
+  --wallpaper-glow-teal:     rgba(154, 172, 184, 0.16);  /* blue-gray #9aacb8 */
+  --wallpaper-glow-lav:      rgba(60,  69,  92,  0.40);  /* slate #3c455c */
+  --wallpaper-glow-warm:     rgba(179, 124, 87,  0.18);  /* amber #b37c57 */
+
+  /* ── Surface hierarchy (navy slate layers) ── */
+  --surface-window:          rgba(44,  52,  70,  0.92);  /* #3c455c 92% */
+  --surface-panel:           rgba(50,  58,  78,  0.78);  /* slightly lighter slate */
+  --surface-control:         rgba(58,  66,  86,  0.72);
+  --surface-hover:           rgba(66,  76,  98,  0.88);
+  --surface-active:          rgba(80,  72,  60,  0.90);  /* amber-tinted active */
+
+  /* ── Borders — blue-gray at low opacity ── */
+  --border-window:           rgba(154, 172, 184, 0.20);
+  --border-panel:            rgba(154, 172, 184, 0.14);
+  --border-control:          rgba(154, 172, 184, 0.12);
+  --border-focus:            rgba(179, 124, 87,  0.55);  /* amber focus ring */
+
+  /* ── Typography ── */
+  --ink:                     #dde2e3;   /* #dde2e3 — cool off-white, crisp on slate */
+  --ink-secondary:           #9aacb8;   /* #9aacb8 — muted blue-gray */
+  --ink-tertiary:            #6c7e8c;   /* between #9aacb8 and slate */
+  --ink-dim:                 #3e4a56;   /* near-invisible — pending chars */
+
+  /* ── Override accent colors with Nordic amber ── */
+  --teal:                    #b37c57;   /* amber replaces teal as primary accent */
+  --teal-light:              #c99070;   /* lighter amber */
+  --teal-dim:                rgba(179, 124, 87, 0.16);
+  --teal-glow:               rgba(179, 124, 87, 0.28);
+
+  /* ── Coral stays for errors but slightly muted ── */
+  --coral:                   #c97260;   /* slightly cooled coral on dark slate */
+  --coral-dim:               rgba(201, 114, 96, 0.14);
+
+  /* ── Lavender → blue-gray accent ── */
+  --lavender:                #9aacb8;
+  --lavender-dim:            rgba(154, 172, 184, 0.14);
+
+  /* ── Semantic aliases ── */
+  --accent-blue:             var(--teal);
+  --accent-red:              var(--coral);
+  --accent-green:            var(--teal-light);
+  --accent-orange:           #b37c57;
+  --accent-purple:           var(--lavender);
+  --text-primary:            var(--ink);
+  --text-secondary:          var(--ink-secondary);
+  --text-muted:              var(--ink-tertiary);
+  --text-dim:                var(--ink-dim);
+  --bg-primary:              var(--wallpaper-base);
+  --bg-secondary:            rgba(43, 31, 22, 0.70);
+  --bg-elevated:             var(--surface-panel);
+  --border:                  var(--border-panel);
+
+  /* ── Deeper shadows on dark ── */
+  --shadow-window:           0 32px 80px rgba(0,0,0,0.58), 0 4px 16px rgba(0,0,0,0.32);
+  --shadow-panel:            0 8px 32px rgba(0,0,0,0.42), 0 2px 8px rgba(0,0,0,0.22);
+  --shadow-dock:             0 8px 32px rgba(0,0,0,0.58), 0 2px 8px rgba(0,0,0,0.30);
+}
+
+/* Dark background on html/body */
+[data-theme="dark"] html,
+[data-theme="dark"] body,
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background-color: var(--wallpaper-base);
+  color: var(--ink);
+}
+
+/* ── Nordic typing-area character states ── */
+[data-theme="dark"] .char-pending {
+  /* Very dim but still distinguishable against slate panels */
+  color: #3e4a56;
+}
+[data-theme="dark"] .word-current .char-pending {
+  /* Pending chars in active word — visibly readable */
+  color: #6c7e8c;
+}
+[data-theme="dark"] .char-correct {
+  color: #dde2e3;
+}
+[data-theme="dark"] .word-current {
+  /* Active word highlight: amber-tinted */
+  background: rgba(179, 124, 87, 0.14);
+}
+[data-theme="dark"] .word-completed:not(.word-wrong) {
+  opacity: 0.52;
+}
+
+/* ── Nordic mode-btn active pill ── */
+[data-theme="dark"] .mode-btn.active {
+  color: #dde2e3;
+  background: #b37c57;
+  box-shadow: 0 1px 8px rgba(179, 124, 87, 0.36);
+}
+
+/* ── Nordic metric WPM value ── */
+[data-theme="dark"] .metric-value {
+  color: #b37c57;
+}
+
+/* ── Nordic restart / nav btn hover ── */
+[data-theme="dark"] .restart-btn:hover,
+[data-theme="dark"] .mp-nav-link:hover {
+  border-color: rgba(179, 124, 87, 0.55);
+  color: #b37c57;
+  box-shadow: 0 0 0 2px rgba(179, 124, 87, 0.16);
+}
+
+/* ── Nordic theme-toggle hover ── */
+[data-theme="dark"] .theme-toggle:hover {
+  background: var(--surface-hover);
+  color: #b37c57;
+  border-color: rgba(179, 124, 87, 0.45);
+  box-shadow: 0 0 0 2px rgba(179, 124, 87, 0.16);
+}
+
+/* ── Nordic word-shell active border ── */
+[data-theme="dark"] .word-shell.is-active {
+  border-color: rgba(179, 124, 87, 0.40);
+  box-shadow: var(--shadow-panel), 0 0 0 2px rgba(179, 124, 87, 0.12);
+}
+
+/* ── Nordic app-titlebar ── */
+[data-theme="dark"] .app-titlebar {
+  background: rgba(44, 52, 70, 0.82);
+  border-bottom-color: rgba(154, 172, 184, 0.12);
+}
+
+/* ── Nordic mobile header ── */
+[data-theme="dark"] .app-header {
+  background: rgba(44, 52, 70, 0.94);
+}
+
+/* ── Nordic dock ── */
+[data-theme="dark"] .dock-container {
+  background: rgba(44, 52, 70, 0.92);
+  border-color: rgba(154, 172, 184, 0.16);
+}
+[data-theme="dark"] .dock-btn:hover {
+  background: rgba(179, 124, 87, 0.16);
+  color: #b37c57;
+}
+[data-theme="dark"] .dock-btn.is-active {
+  background: rgba(179, 124, 87, 0.20);
+  color: #b37c57;
+}
+
+/* ── Nordic multiplayer progress bar (self) ── */
+[data-theme="dark"] .mp-progress-self {
+  background: linear-gradient(90deg, #b37c57 0%, #c97260 100%);
+}
+
+/* ── Nordic result badge ── */
+[data-theme="dark"] .result-badge {
+  border-color: rgba(179, 124, 87, 0.30) !important;
+}
+
+/* ── Nordic mp-secondary-btn ── */
+[data-theme="dark"] .mp-secondary-btn {
+  color: #b37c57;
+  background: rgba(179, 124, 87, 0.14);
+  border-color: rgba(179, 124, 87, 0.30);
+}
+[data-theme="dark"] .mp-secondary-btn:hover {
+  border-color: #b37c57;
+  box-shadow: 0 0 0 2px rgba(179, 124, 87, 0.16);
+}
+
+/* ── Nordic input focus ── */
+[data-theme="dark"] .mp-input:focus {
+  border-color: rgba(179, 124, 87, 0.45);
+  box-shadow: 0 0 0 2px rgba(179, 124, 87, 0.12);
+}
+
+/* ── Nordic scrollbar ── */
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #3c455c;
+}
+
+/* ── Nordic text selection ── */
+[data-theme="dark"] ::selection {
+  background: rgba(179, 124, 87, 0.28);
+  color: #dde2e3;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THEME TOGGLE BUTTON
+   ═══════════════════════════════════════════════════════════════════════════ */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border-control);
+  background: var(--surface-control);
+  cursor: pointer;
+  color: var(--ink-secondary);
+  transition:
+    background  var(--spring-micro) ease,
+    color       var(--spring-micro) ease,
+    border-color var(--spring-micro) ease,
+    transform   var(--spring-micro) var(--ease-spring),
+    box-shadow  var(--spring-micro) ease;
+  touch-action: manipulation;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-toggle:hover {
+  background: var(--surface-hover);
+  color: var(--teal);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--teal-dim);
+}
+
+.theme-toggle:active {
+  transform: scale(0.88);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VIEW TRANSITIONS  (circle-expand reveal from toggle position)
+   The ::view-transition-old/new pseudo-elements handle the cross-fade;
+   the clip-path is driven by a CSS custom property set inline from JS.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Suppress the default cross-fade entirely — we drive our own animation */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* The NEW content expands from a circle originating at the toggle button */
+::view-transition-new(root) {
+  clip-path: circle(0% at var(--vt-x, 50%) var(--vt-y, 50%));
+  animation: vt-reveal 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  z-index: 2;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+@keyframes vt-reveal {
+  from { clip-path: circle(0%    at var(--vt-x, 50%) var(--vt-y, 50%)); }
+  to   { clip-path: circle(150% at var(--vt-x, 50%) var(--vt-y, 50%)); }
+}
+
+/* Fallback for browsers without View Transitions — fade the root */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-new(root) {
+    animation: vt-fade 250ms ease forwards;
+    clip-path: none;
+  }
+  @keyframes vt-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
 }
