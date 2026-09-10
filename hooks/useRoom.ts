@@ -152,11 +152,11 @@ export function useRoom(
             wpm:      stateRef.current.players.find(p => p.id === playerIdRef.current)?.wpm ?? 0,
             finished: stateRef.current.players.find(p => p.id === playerIdRef.current)?.finished ?? false,
           }
-          setState(prev =>
-            prev.players.find(p => p.id === self.id)
-              ? prev
-              : { ...prev, players: [...prev.players, self] }
-          )
+          setState(prev => {
+            if (prev.players.find(p => p.id === self.id)) return prev
+            if (prev.players.length >= 5) return prev
+            return { ...prev, players: [...prev.players, self] }
+          })
           push(ch, 'player-join', self)
         }
 

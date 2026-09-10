@@ -24,8 +24,14 @@ const LiveMetrics = memo(function LiveMetrics({
 
   const timeColor = timeLeft <= 10 ? 'var(--accent-red)' : 'var(--text-primary)'
 
+  // Note: intentionally no aria-live here — these values update every
+  // 250ms and would spam screen readers. The final ResultsScreen announces
+  // the outcome once when the test finishes instead.
   return (
-    <div className="metrics-row">
+    <div
+      className="metrics-row"
+      aria-label={`Live stats: ${wpm} words per minute, ${accuracy} percent accuracy${mode === 'time' ? `, ${timeLeft} seconds left` : ''}`}
+    >
       <div className="metric-card">
         <div className="metric-label">wpm</div>
         <div className="metric-value" style={{ color: 'var(--accent-blue)' }}>

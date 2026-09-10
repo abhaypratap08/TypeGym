@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import type { FinalResults } from '@/hooks/useTypingEngine'
+import { RestartIcon } from '@/components/icons'
 
 interface ResultsScreenProps {
   results:   FinalResults
@@ -76,7 +77,14 @@ export default function ResultsScreen({
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
+      role="region"
+      aria-label={`Session results: ${wpm} words per minute, ${accuracy} percent accuracy, ${errors} errors, ${perf.label}`}
     >
+      {/* Announced once so screen reader users hear the outcome without the live-metrics noise */}
+      <span className="sr-only" role="status" aria-live="polite">
+        Test complete. {wpm} words per minute, {accuracy} percent accuracy, {perf.label}.
+      </span>
+
       {/* Header row */}
       <div className="results-header">
         <h2 className="result-title">
@@ -181,17 +189,5 @@ export default function ResultsScreen({
         </button>
       </motion.div>
     </motion.div>
-  )
-}
-
-function RestartIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2.5"
-      strokeLinecap="round" strokeLinejoin="round"
-    >
-      <polyline points="1 4 1 10 7 10" />
-      <path d="M3.51 15a9 9 0 1 0 .49-3.47" />
-    </svg>
   )
 }

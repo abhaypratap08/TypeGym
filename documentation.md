@@ -40,6 +40,8 @@ It supports timed tests, fixed word-count tests, quote typing, and code snippet 
 - Restart support through the restart button or `Tab` key.
 - Mobile-friendly hidden input layer for touch keyboards.
 - Inlined datasets for instant test generation without network requests.
+- Multiplayer typing races (up to 5 players) with a 4-digit room code, live
+  progress lanes, and a countdown-to-finish flow, powered by Pusher Channels.
 
 ---
 
@@ -70,18 +72,70 @@ TypeGym/
 │       ├── ResultsScreen.tsx    # Final results card
 │       ├── TypingApp.tsx        # Main app shell and UI orchestration
 │       └── WordDisplay.tsx      # Word rendering, character states, and cursor
+│   ├── multiplayer/
+│   │   └── page.tsx              # Multiplayer lobby entry point
+│   └── api/
+│       └── pusher/route.ts       # Validates and relays race events to Pusher
+├── components/
+│   └── multiplayer/
+│       ├── MultiplayerLobby.tsx  # Create/join room UI
+│       ├── MultiplayerRace.tsx   # Race screen: lanes, countdown, timer
+│       ├── PlayerLane.tsx        # Per-player progress lane
+│       ├── WinnerScreen.tsx      # Post-race results and leaderboard
+│       └── MultiplayerSiteChrome.tsx # Shared header/footer for MP pages
 ├── hooks/
-│   └── useTypingEngine.ts       # Core typing engine, timer, metrics, and lifecycle state
+│   ├── useTypingEngine.ts       # Core typing engine, timer, metrics, and lifecycle state
+│   └── useRoom.ts               # Multiplayer room state synced over Pusher
 ├── lib/
-│   └── datasets.ts              # Word list, quote list, and code snippets
+│   ├── datasets.ts              # Word list, quote list, and code snippets
+│   └── seededRandom.ts          # Deterministic word list shared by all racers
 ├── public/
-│   └── logo.svg                 # TypeGym logo asset
+│   ├── logo.svg                 # TypeGym logo asset
+│   └── trophy.svg               # Multiplayer winner trophy asset
 ├── next.config.js               # Next.js configuration
 ├── package.json                 # Scripts and dependencies
 ├── tailwind.config.ts           # Tailwind configuration
 ├── tsconfig.json                # TypeScript configuration
 └── documentation.md             # Project documentation
 ```
+
+---
+
+## Multiplayer Mode
+
+Multiplayer races run through [Pusher Channels](https://pusher.com/channels)
+for realtime sync — there is no persistent backend or database.
+
+- A host creates a room and gets a random 4-digit code; up to 4 more players
+  can join with that code (5 players max per room).
+- All players in a room type the same word list, deterministically generated
+  from the room code via a seeded PRNG (`lib/seededRandom.ts`), so no network
+  round-trip is needed to sync the text itself.
+- Player joins, progress ticks, race start, and finish events are relayed
+  through `POST /api/pusher`, which validates the channel name, event name,
+  and payload shape before calling `pusher.trigger(...)` server-side (the
+  Pusher app secret never reaches the browser).
+- If Pusher environment variables are not configured, the multiplayer lobby
+  shows a setup banner and the room still renders locally, but players won't
+  see each other.
+
+### Environment variables
+
+Copy `.env.example` to `.env.local` and fill in values from your own
+[Pusher dashboard](https://dashboard.pusher.com/) (Channels app → App Keys):
+
+| Variable | Where it's used | Notes |
+|---|---|---|
+| `NEXT_PUBLIC_PUSHER_KEY` | client | Public app key, safe to expose |
+| `NEXT_PUBLIC_PUSHER_CLUSTER` | client | e.g. `mt1` |
+| `PUSHER_APP_ID` | server only | Never prefix with `NEXT_PUBLIC_` |
+| `PUSHER_SECRET` | server only | Never prefix with `NEXT_PUBLIC_` — keep this out of git |
+| `TYPEGYM_PUSHER_TRIGGER_SECRET` (optional) | server | If set, `POST /api/pusher` requires a matching `x-typegym-pusher-trigger` header |
+| `NEXT_PUBLIC_TYPEGYM_PUSHER_TRIGGER_SECRET` (optional) | client | Must equal the server value above |
+
+**Never commit real values for these** — `.env.example` should only ever
+contain placeholders. If you're deploying (e.g. on Vercel), set the real
+values in your hosting provider's dashboard instead.
 
 ---
 
@@ -176,8 +230,8 @@ The animated cursor is rendered around the current character using Framer Motion
 ## Known Limitations
 
 - The word, quote, and code datasets are currently inlined and relatively small.
-- There is no backend, account system, leaderboard, or saved history yet.
-- Results are shown for the current session only.
+- There is no account system, persistent leaderboard, or saved history yet — solo results are session-only, and multiplayer rooms are ephemeral (Pusher channel, no database).
+- Multiplayer requires a Pusher account/environment variables; without them the lobby degrades to solo-only.
 - Code mode uses short snippets rather than full language-aware parsing.
 - The UI is optimized for the current app layout, but more viewport testing would help polish edge cases.
 - Automated test coverage has not been added yet.
@@ -193,6 +247,8 @@ The animated cursor is rendered around the current character using Framer Motion
 - Add theme customization.
 - Add sound and haptic feedback options.
 - Add automated tests for the typing engine.
+- Persist multiplayer results (leaderboards, match history).
+- Support more than 5 players per multiplayer room.
 - Add accessibility polish for screen readers and keyboard-only navigation.
 - Add deployment notes and screenshots.
 
