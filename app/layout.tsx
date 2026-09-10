@@ -1,22 +1,32 @@
 import type { Metadata, Viewport } from 'next'
-import { JetBrains_Mono, Outfit } from 'next/font/google'
+import { Geist, Geist_Mono, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 
+const geist = Geist({
+  subsets: ['latin'],
+  variable: '--font-geist',
+  display: 'swap',
+})
+
+const geistMono = Geist_Mono({
+  subsets: ['latin'],
+  variable: '--font-geist-mono',
+  display: 'swap',
+})
+
+// Kept as a fallback mono stack; Geist Mono is preferred
 const jetBrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-jetbrains-mono',
   display: 'swap',
 })
 
-const outfit = Outfit({
-  subsets: ['latin'],
-  variable: '--font-outfit',
-  display: 'swap',
-})
-
 export const viewport: Viewport = {
-  width:         'device-width',
-  initialScale:  1,
+  width:             'device-width',
+  initialScale:      1,
+  maximumScale:      1,
+  interactiveWidget: 'resizes-content',
+  viewportFit:       'cover',
 }
 
 export const metadata: Metadata = {
@@ -33,7 +43,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${jetBrainsMono.variable} ${outfit.variable}`}>{children}</body>
+      <body className={`${geist.variable} ${geistMono.variable} ${jetBrainsMono.variable}`}>
+        {children}
+      </body>
     </html>
   )
 }

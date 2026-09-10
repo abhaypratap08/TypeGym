@@ -431,14 +431,23 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
 
   // ── Live metrics (memoized — only recompute when relevant state changes) ───
 
+  /**
+   * analyzeResults is O(n characters) and only needs to run when committed
+   * results change — not on every keystroke. Memoize it separately so both
+   * liveWPM and liveAccuracy can share the same computation.
+   */
+  const committedStats = useMemo(
+    () => analyzeResults(wordResults),
+    [wordResults],
+  )
+
   const liveWPM = useMemo(() => {
     if (elapsed === 0 || wordResults.length === 0) return 0
-    const { correctChars } = analyzeResults(wordResults)
-    return calcWPM(correctChars, elapsed)
-  }, [wordResults, elapsed])
+    return calcWPM(committedStats.correctChars, elapsed)
+  }, [committedStats, elapsed, wordResults.length])
 
   const liveAccuracy = useMemo(() => {
-    const { correctChars, totalChars } = analyzeResults(wordResults)
+    const { correctChars, totalChars } = committedStats
     const cw = words[currentWordIdx] ?? ''
     let ec = 0
     const et = Math.max(cw.length, currentInput.length)
@@ -446,7 +455,7 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
       if (currentInput[i] === cw[i]) ec++
     }
     return calcAccuracy(correctChars + ec, totalChars + et)
-  }, [wordResults, currentInput, words, currentWordIdx])
+  }, [committedStats, currentInput, words, currentWordIdx])
 
   // ── Config setters ─────────────────────────────────────────────────────────
 

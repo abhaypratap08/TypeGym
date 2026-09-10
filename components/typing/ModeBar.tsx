@@ -1,10 +1,11 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useRef, useId } from 'react'
+import { motion } from 'framer-motion'
 import type { TestMode } from '@/hooks/useTypingEngine'
 import type { CodeLanguage } from '@/lib/datasets'
 
-interface ModeBartProps {
+interface ModeBarProps {
   mode:           TestMode
   codeLanguage:   CodeLanguage
   timeSetting:    number
@@ -15,79 +16,103 @@ interface ModeBartProps {
   onWord:         (w: number) => void
 }
 
-const TIME_OPTIONS  = [15, 30, 60, 120]
-const WORD_OPTIONS  = [25, 50, 100]
-const CODE_OPTIONS: CodeLanguage[] = ['javascript', 'python', 'java', 'c', 'cpp']
+const TIME_OPTIONS:  number[]       = [15, 30, 60, 120]
+const WORD_OPTIONS:  number[]       = [25, 50, 100]
+const CODE_OPTIONS:  CodeLanguage[] = ['javascript', 'python', 'java', 'c', 'cpp']
+const MODE_OPTIONS:  TestMode[]     = ['time', 'words', 'quote', 'code']
+
+// ── Pill segment group ────────────────────────────────────────────────────────
+
+interface PillGroupProps<T extends string | number> {
+  options:   { value: T; label: string }[]
+  active:    T
+  onChange:  (v: T) => void
+  layoutId?: string
+}
+
+function PillGroup<T extends string | number>({
+  options, active, onChange, layoutId,
+}: PillGroupProps<T>) {
+  return (
+    <div className="mode-bar-primary" role="group">
+      {options.map(({ value, label }) => {
+        const isActive = value === active
+        return (
+          <button
+            key={String(value)}
+            className={`mode-btn ${isActive ? 'active' : ''}`}
+            onClick={() => onChange(value)}
+            style={{ position: 'relative' }}
+          >
+            {/* Sliding background pill — only rendered on active item */}
+            {isActive && layoutId && (
+              <motion.span
+                layoutId={layoutId}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: 'var(--r-pill)',
+                  background: 'var(--teal)',
+                  zIndex: 0,
+                }}
+                transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.7 }}
+              />
+            )}
+            <span style={{ position: 'relative', zIndex: 1 }}>{label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 const ModeBar = memo(function ModeBar({
   mode, codeLanguage, timeSetting, wordSetting,
   onMode, onCodeLanguage, onTime, onWord,
-}: ModeBartProps) {
+}: ModeBarProps) {
+  const uid = useId()
+
+  const modeOptions = MODE_OPTIONS.map(m => ({ value: m, label: m }))
+
+  const timeOptions  = TIME_OPTIONS.map(t => ({ value: t, label: String(t) }))
+  const wordOptions  = WORD_OPTIONS.map(w => ({ value: w, label: String(w) }))
+  const codeOptions  = CODE_OPTIONS.map(l => ({ value: l, label: l === 'cpp' ? 'c++' : l }))
+
   return (
     <div className="mode-bar">
+      {/* Primary mode row */}
+      <PillGroup
+        options={modeOptions}
+        active={mode}
+        onChange={onMode}
+        layoutId={`${uid}-mode`}
+      />
 
-      {/* ── Primary mode row — always rendered ── */}
-      <div className="mode-bar-primary">
-        <button
-          className={`mode-btn ${mode === 'time'  ? 'active' : ''}`}
-          onClick={() => onMode('time')}
-        >time</button>
-
-        <button
-          className={`mode-btn ${mode === 'words' ? 'active' : ''}`}
-          onClick={() => onMode('words')}
-        >words</button>
-
-        <button
-          className={`mode-btn ${mode === 'quote' ? 'active' : ''}`}
-          onClick={() => onMode('quote')}
-        >quote</button>
-
-        <button
-          className={`mode-btn ${mode === 'code'  ? 'active' : ''}`}
-          onClick={() => onMode('code')}
-        >code</button>
-      </div>
-
-      {/* ── Sub-options row — mode-dependent ── */}
+      {/* Sub-options */}
       {mode === 'time' && (
-        <div className="mode-bar-sub">
-          {TIME_OPTIONS.map(t => (
-            <button
-              key={t}
-              className={`mode-btn ${timeSetting === t ? 'active' : ''}`}
-              onClick={() => onTime(t)}
-            >{t}</button>
-          ))}
-        </div>
+        <PillGroup
+          options={timeOptions}
+          active={timeSetting}
+          onChange={onTime}
+          layoutId={`${uid}-time`}
+        />
       )}
-
       {mode === 'words' && (
-        <div className="mode-bar-sub">
-          {WORD_OPTIONS.map(w => (
-            <button
-              key={w}
-              className={`mode-btn ${wordSetting === w ? 'active' : ''}`}
-              onClick={() => onWord(w)}
-            >{w}</button>
-          ))}
-        </div>
+        <PillGroup
+          options={wordOptions}
+          active={wordSetting}
+          onChange={onWord}
+          layoutId={`${uid}-words`}
+        />
       )}
-
       {mode === 'code' && (
-        <div className="mode-bar-sub">
-          {CODE_OPTIONS.map(l => (
-            <button
-              key={l}
-              className={`mode-btn ${codeLanguage === l ? 'active' : ''}`}
-              onClick={() => onCodeLanguage(l)}
-            >
-              {l === 'cpp' ? 'c++' : l}
-            </button>
-          ))}
-        </div>
+        <PillGroup
+          options={codeOptions}
+          active={codeLanguage}
+          onChange={onCodeLanguage}
+          layoutId={`${uid}-code`}
+        />
       )}
-
     </div>
   )
 })

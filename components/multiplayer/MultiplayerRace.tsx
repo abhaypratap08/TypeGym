@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTypingEngine } from '@/hooks/useTypingEngine'
 import { useRoom } from '@/hooks/useRoom'
+import type { ConnectionStatus } from '@/hooks/useRoom'
 import { WORDS_LIST } from '@/lib/datasets'
 import { seededWordList } from '@/lib/seededRandom'
 import WordDisplay from '@/components/typing/WordDisplay'
@@ -18,6 +19,37 @@ function getPlayerId() {
   return id
 }
 
+// ── Connection status banner ───────────────────────────────────────────────────
+
+function ConnectionBanner({ status }: { status: ConnectionStatus }) {
+  if (status === 'connected') return null
+
+  const config = {
+    connecting:   { bg: 'var(--teal-dim)',   border: 'rgba(74,158,135,0.28)', color: 'var(--teal)',          text: 'Connecting to room…' },
+    error:        { bg: 'var(--coral-dim)',   border: 'rgba(217,108,90,0.28)', color: 'var(--coral)',         text: 'Connection error — check your network and refresh.' },
+    disconnected: { bg: 'rgba(201,134,78,0.10)', border: 'rgba(201,134,78,0.28)', color: 'var(--accent-orange)', text: 'Connection lost — attempting to reconnect…' },
+  }[status]
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      style={{
+        width: '100%', padding: '9px 14px', borderRadius: 'var(--r-control)',
+        background: config.bg, border: `1px solid ${config.border}`,
+        color: config.color, fontSize: 13,
+        fontFamily: 'var(--font-geist), system-ui, sans-serif',
+        textAlign: 'center', lineHeight: 1.5,
+      }}
+      role="status"
+      aria-live="polite"
+    >
+      {config.text}
+    </motion.div>
+  )
+}
+
 interface Props {
   roomCode:    string
   playerName:  string
@@ -28,15 +60,17 @@ interface Props {
 
 export default function MultiplayerRace({ roomCode, playerName, playerColor, isHost, onLeave }: Props) {
   const playerId = useRef(getPlayerId()).current
-  const { state, emitProgress, emitFinish, startRace, forceFinish } = useRoom(roomCode, playerId, playerName, playerColor, isHost)
+  const {
+    state, connectionStatus, emitProgress, emitFinish, startRace, forceFinish,
+  } = useRoom(roomCode, playerId, playerName, playerColor, isHost)
   const engine = useTypingEngine()
   const { enterCustomWordRace, exitCustomWordRace } = engine
   const inputRef = useRef<HTMLInputElement | null>(null)
-  const prevWordCount = useRef(0)
   const finishEmittedRef = useRef(false)
   const [raceStarted, setRaceStarted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [timeLimit, setTimeLimit] = useState(60)
+  const [copyHint, setCopyHint] = useState<'idle' | 'copied' | 'err'>('idle')
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 640)
@@ -44,7 +78,6 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
-  const [copyHint, setCopyHint] = useState<'idle' | 'copied' | 'err'>('idle')
 
   useEffect(() => {
     const seed = parseInt(roomCode, 10)
@@ -67,18 +100,21 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
     }
   }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Safety net: if timeLeft hits 0 and phase is still racing, force finish
   useEffect(() => {
-    if (phase === 'racing' && state.timeLeft === 0) {
-      forceFinish()
-    }
+    if (phase === 'racing' && state.timeLeft === 0) forceFinish()
   }, [phase, state.timeLeft, forceFinish])
 
+  // Emit on word commit (throttled inside useRoom)
   useEffect(() => {
     if (!raceStarted) return
-    const len = engine.wordResults.length
-    prevWordCount.current = len
-    const progress = len / Math.max(engine.words.length, 1)
+    const progress = engine.wordResults.length / Math.max(engine.words.length, 1)
+    emitProgress(progress, engine.liveWPM)
+  }, [engine.wordResults.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Also emit on WPM ticker — throttle handles rate
+  useEffect(() => {
+    if (!raceStarted) return
+    const progress = engine.wordResults.length / Math.max(engine.words.length, 1)
     emitProgress(progress, engine.liveWPM)
   }, [engine.liveWPM]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -114,57 +150,53 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
 
   return (
     <div className="app-shell bg-grid">
-      <MultiplayerHeader
-        right={(
-          <>
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
-              <span
-                style={{
-                  fontFamily: 'var(--font-outfit), sans-serif',
-                  fontWeight: 700,
-                  fontSize: 24,
-                  color: 'var(--text-primary)',
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                Room{' '}
-                <span style={{ color: 'var(--accent-blue)', letterSpacing: '0.12em' }}>{roomCode}</span>
-              </span>
-              <button
-                type="button"
-                className="mp-secondary-btn"
-                onClick={copyRoomCode}
-                title="Copy room code"
-              >
-                {copyHint === 'copied' ? 'Copied' : copyHint === 'err' ? 'Copy failed' : 'Copy code'}
-              </button>
-              <span className="mp-room-meta">{state.players.length}/5 players</span>
-            </div>
-            <button type="button" className="mp-nav-link" onClick={handleLeave}>
-              leave
-            </button>
-          </>
-        )}
-      />
+      <div className="app-window">
+        <MultiplayerHeader
+          right={(
+            <>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  fontFamily: 'var(--font-geist-mono), monospace',
+                  fontWeight: 600, fontSize: 15,
+                  color: 'var(--ink)', letterSpacing: '0.10em',
+                }}>
+                  {roomCode}
+                </span>
+                <button type="button" className="mp-secondary-btn" onClick={copyRoomCode}>
+                  {copyHint === 'copied' ? 'Copied' : copyHint === 'err' ? 'Failed' : 'Copy'}
+                </button>
+                <span className="mp-room-meta">{state.players.length}/5</span>
+              </div>
+              <button type="button" className="mp-nav-link" onClick={handleLeave}>leave</button>
+            </>
+          )}
+        />
 
-      <main className="app-main">
-        {showWinner ? (
-          <motion.div key="winner" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <WinnerScreen
-              players={state.players}
-              winnerId={state.winnerId!}
-              selfId={playerId}
-              onPlayAgain={handleLeave}
-            />
-          </motion.div>
-        ) : (
+        <main className="app-main">
+          {showWinner ? (
+            <motion.div key="winner" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <WinnerScreen
+                players={state.players}
+                winnerId={state.winnerId!}
+                selfId={playerId}
+                onPlayAgain={handleLeave}
+              />
+            </motion.div>
+          ) : (
             <motion.div
               key="race"
-              className="test-layout"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              style={{ width: '100%', maxWidth: 960, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
+              style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 14 }}
             >
+              {/* Connection banner */}
+              <AnimatePresence>
+                {connectionStatus !== 'connected' && (
+                  <ConnectionBanner key="conn" status={connectionStatus} />
+                )}
+              </AnimatePresence>
+
+              {/* Countdown overlay */}
               <AnimatePresence>
                 {phase === 'countdown' && (
                   <motion.div
@@ -186,24 +218,29 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
                 )}
               </AnimatePresence>
 
+              {/* Player lanes */}
               <div className="mp-lanes-panel">
                 {phase === 'racing' && state.timeLimit > 0 && (
                   <div style={{
-                    textAlign: 'right',
-                    fontFamily: 'var(--font-jetbrains-mono), monospace',
-                    fontSize: 20,
-                    fontWeight: 700,
-                    color: state.timeLeft <= 10 ? 'var(--accent-red)' : 'var(--text-secondary)',
-                    marginBottom: 8,
-                    transition: 'color 0.3s',
+                    display: 'flex', justifyContent: 'flex-end',
+                    marginBottom: 10,
+                    fontFamily: 'var(--font-geist-mono), monospace',
+                    fontSize: 17, fontWeight: 600, letterSpacing: '-0.02em',
+                    color: state.timeLeft <= 10 ? 'var(--coral)' : 'var(--ink-secondary)',
+                    transition: 'color 0.3s ease',
                   }}>
                     {state.timeLeft}s
                   </div>
                 )}
+
                 {state.players.length === 0 ? (
-                  <div className="mp-tap-hint" style={{ padding: '12px 0' }}>
-                    Waiting for players to join…
-                  </div>
+                  <p className="mp-tap-hint" style={{ padding: '10px 0' }}>
+                    {connectionStatus === 'connecting'
+                      ? 'Connecting…'
+                      : connectionStatus === 'error'
+                      ? 'Could not connect. Check your network and refresh.'
+                      : 'Waiting for players to join…'}
+                  </p>
                 ) : (
                   state.players.map(p => (
                     <PlayerLane
@@ -212,21 +249,25 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
                       isSelf={p.id === playerId}
                       isWinner={state.winnerId === p.id}
                       compact={isMobile}
+                      isRacing={phase === 'racing'}
                     />
                   ))
                 )}
               </div>
 
+              {/* Typing area */}
               {(phase === 'racing' || phase === 'waiting') && (
                 <div
                   className={`word-shell ${phase === 'racing' && engine.phase === 'active' ? 'is-active' : 'is-idle'}`}
                   onClick={() => phase === 'racing' && inputRef.current?.focus()}
+                  onTouchStart={() => phase === 'racing' && inputRef.current?.focus()}
                   style={{
-                    opacity: phase === 'racing' ? 1 : 0.6,
+                    opacity: phase === 'racing' ? 1 : 0.55,
                     pointerEvents: phase === 'racing' ? 'auto' : 'none',
-                    filter: phase === 'waiting' ? 'blur(6px)' : 'none',
+                    filter: phase === 'waiting' ? 'blur(5px)' : 'none',
                     transition: 'filter 0.3s ease, opacity 0.3s ease',
                     userSelect: 'none',
+                    touchAction: 'manipulation',
                   }}
                 >
                   <input
@@ -238,6 +279,11 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
                     autoCorrect="off"
                     autoComplete="off"
                     spellCheck={false}
+                    inputMode="text"
+                    enterKeyHint="done"
+                    data-gramm="false"
+                    data-gramm_editor="false"
+                    data-enable-grammarly="false"
                     aria-label="Typing input"
                   />
                   <WordDisplay
@@ -250,19 +296,18 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
                 </div>
               )}
 
+              {/* Host controls / waiting notice */}
               {phase === 'waiting' && (
                 <div style={{ textAlign: 'center' }}>
                   {isHost ? (
                     <>
-                      {/* Time limit picker */}
-                      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
                         {[30, 60, 90, 120].map(t => (
                           <button
                             key={t}
                             type="button"
                             className={`mode-btn${timeLimit === t ? ' active' : ''}`}
                             onClick={() => setTimeLimit(t)}
-                            style={{ fontSize: 14, padding: '8px 16px' }}
                           >
                             {t}s
                           </button>
@@ -272,16 +317,15 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
                         type="button"
                         className="restart-btn"
                         onClick={() => startRace(timeLimit)}
-                        disabled={state.players.length < 2}
-                        title={state.players.length < 2 ? 'At least two players are required to start' : undefined}
-                        style={{ padding: '13px 36px', fontSize: 16, whiteSpace: 'nowrap' }}
+                        disabled={state.players.length < 2 || connectionStatus !== 'connected'}
+                        style={{ padding: '11px 28px', fontSize: 14 }}
                       >
                         Start Race
                       </button>
-                      <p className="mp-tap-hint" style={{ marginTop: 12 }}>
+                      <p className="mp-tap-hint" style={{ marginTop: 10 }}>
                         {state.players.length < 2
                           ? 'Share the room code so a second player can join.'
-                          : 'When everyone is ready, start the countdown.'}
+                          : 'Start when everyone is ready.'}
                       </p>
                     </>
                   ) : (
@@ -289,11 +333,23 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
                   )}
                 </div>
               )}
+
+              {/* "Others still typing" notice */}
+              {phase === 'racing' && engine.phase === 'finished' && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mp-tap-hint"
+                >
+                  Waiting for others to finish…
+                </motion.p>
+              )}
             </motion.div>
           )}
-      </main>
+        </main>
 
-      <MultiplayerFooter />
+        <MultiplayerFooter />
+      </div>
     </div>
   )
 }

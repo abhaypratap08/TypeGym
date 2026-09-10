@@ -17,17 +17,14 @@ interface WinnerScreenProps {
 export default function WinnerScreen({ players, winnerId, selfId, onPlayAgain }: WinnerScreenProps) {
   const [celebrating, setCelebrating] = useState(false)
 
-  const startCelebration = () => {
-    setCelebrating(true)
-    setTimeout(() => setCelebrating(false), 3000)
-  }
-  const winner = players.find(p => p.id === winnerId)
-  const sorted = [...players].sort((a, b) => b.wpm - a.wpm)
-  const winnerColor = PLAYER_COLORS.find(c => c.id === winner?.color)?.hex ?? '#58a6ff'
-  const isSelfWinner = winnerId === selfId
+  const winner        = players.find(p => p.id === winnerId)
+  const sorted        = [...players].sort((a, b) => b.wpm - a.wpm)
+  const winnerColor   = PLAYER_COLORS.find(c => c.id === winner?.color)?.hex ?? 'var(--teal)'
+  const isSelfWinner  = winnerId === selfId
 
   return (
     <>
+      {/* Celebration overlay */}
       <AnimatePresence>
         {celebrating && (
           <motion.div
@@ -36,45 +33,46 @@ export default function WinnerScreen({ players, winnerId, selfId, onPlayAgain }:
             exit={{ opacity: 0 }}
             style={{
               position: 'fixed', inset: 0, zIndex: 100,
-              background: 'rgba(0,0,0,0.9)',
+              background: 'rgba(245,240,232,0.85)',
+              backdropFilter: 'blur(12px)',
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center',
               pointerEvents: 'none',
-              overflow: 'hidden',
             }}
           >
-            {/* Rings + trophy in same anchor so rings expand from trophy center */}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 200, height: 200 }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 180, height: 180 }}>
               {[0, 0.5, 1].map(delay => (
-                <motion.div key={delay} style={{
-                  position: 'absolute',
-                  borderRadius: '50%',
-                  border: `2px solid ${winnerColor}`,
-                  width: 200, height: 200,
-                  top: 0, left: 0,
-                }}
-                  animate={{ scale: [1, 4], opacity: [0.7, 0] }}
-                  transition={{ duration: 1.8, delay, ease: 'easeOut', repeat: Infinity, repeatDelay: 0.6 }}
+                <motion.div
+                  key={delay}
+                  style={{
+                    position: 'absolute',
+                    borderRadius: '50%',
+                    border: `1.5px solid ${winnerColor}`,
+                    width: 180, height: 180,
+                    top: 0, left: 0,
+                  }}
+                  animate={{ scale: [1, 3.5], opacity: [0.6, 0] }}
+                  transition={{ duration: 1.6, delay, ease: 'easeOut', repeat: Infinity, repeatDelay: 0.8 }}
                 />
               ))}
               <motion.div
-                animate={{ rotate: 360, scale: [0.5, 1.3, 1.1] }}
-                transition={{ rotate: { duration: 1, ease: 'easeInOut' }, scale: { duration: 0.8, times: [0, 0.6, 1] } }}
-                style={{ filter: `drop-shadow(0 0 40px ${winnerColor}) drop-shadow(0 0 80px ${winnerColor})`, position: 'relative', zIndex: 1 }}
+                animate={{ rotate: 360, scale: [0.5, 1.2, 1.05] }}
+                transition={{ rotate: { duration: 0.8, ease: 'easeInOut' }, scale: { duration: 0.7, times: [0, 0.6, 1] } }}
+                style={{ filter: `drop-shadow(0 0 24px ${winnerColor}88)`, position: 'relative', zIndex: 1 }}
               >
-                <Image src="/trophy.svg" alt="trophy" width={200} height={200} priority />
+                <Image src="/trophy.svg" alt="trophy" width={160} height={160} priority />
               </motion.div>
             </div>
-
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: [0, 1, 1, 0], y: 0 }}
-              transition={{ duration: 3, times: [0, 0.2, 0.8, 1] }}
+              transition={{ duration: 2.6, times: [0, 0.2, 0.8, 1] }}
               style={{
-                marginTop: 24, fontSize: 28, fontWeight: 800,
-                color: winnerColor, fontFamily: 'var(--font-outfit), sans-serif',
-                textShadow: `0 0 20px ${winnerColor}`,
-                letterSpacing: '-0.02em', position: 'relative', zIndex: 1,
+                marginTop: 20, fontSize: 24, fontWeight: 700,
+                color: winnerColor,
+                fontFamily: 'var(--font-geist), system-ui, sans-serif',
+                letterSpacing: '-0.02em',
+                position: 'relative', zIndex: 1,
               }}
             >
               {winner?.name} wins!
@@ -87,85 +85,120 @@ export default function WinnerScreen({ players, winnerId, selfId, onPlayAgain }:
         className="result-card"
         initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.35, ease: 'easeOut' }}
+        transition={{ duration: 0.32, ease: 'easeOut' }}
         style={{
-          maxWidth: 520, width: '100%', textAlign: 'center',
-          borderColor: `${winnerColor}55`,
-          boxShadow: `0 28px 78px rgba(0,0,0,0.38), 0 0 60px ${winnerColor}18`,
+          maxWidth: 480, width: '100%', textAlign: 'center',
+          borderColor: `${winnerColor}33`,
         }}
       >
         <motion.div
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 16 }}
-          style={{ marginBottom: 8 }}
+          transition={{ type: 'spring', stiffness: 240, damping: 18 }}
+          style={{ marginBottom: 6 }}
         >
-          <Image src="/trophy.svg" alt="trophy" width={110} height={110} priority />
+          <Image src="/trophy.svg" alt="trophy" width={80} height={80} priority
+            style={{ filter: `drop-shadow(0 4px 16px ${winnerColor}44)` }}
+          />
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <div className="result-stat-label" style={{ marginBottom: 6 }}>winner</div>
-          <div className="result-title mp-break-text" style={{ fontSize: 36, color: winnerColor, marginBottom: 4 }}>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+          <div className="result-stat-label" style={{ marginBottom: 5 }}>winner</div>
+          <div className="result-title mp-break-text" style={{ fontSize: 28, color: winnerColor, marginBottom: 3, textAlign: 'center' }}>
             {winner?.name ?? '—'}
           </div>
-          <div style={{ fontSize: 18, color: 'var(--text-secondary)', fontFamily: 'var(--font-jetbrains-mono), monospace', marginBottom: 28 }}>
+          <div style={{
+            fontSize: 16, color: 'var(--ink-secondary)',
+            fontFamily: 'var(--font-geist-mono), monospace',
+            marginBottom: 22, letterSpacing: '-0.02em',
+          }}>
             {winner?.wpm} wpm
           </div>
 
           {isSelfWinner ? (
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-              className="mp-tap-hint" style={{ color: winnerColor, marginBottom: 20 }}>
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+              style={{ color: 'var(--teal)', fontSize: 13, marginBottom: 18, fontFamily: 'var(--font-geist), system-ui, sans-serif' }}>
               That&apos;s you — nice run.
             </motion.p>
           ) : (
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-              className="mp-tap-hint" style={{ marginBottom: 20 }}>
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+              style={{ color: 'var(--ink-tertiary)', fontSize: 13, marginBottom: 18, fontFamily: 'var(--font-geist), system-ui, sans-serif' }}>
               Better luck next time.
             </motion.p>
           )}
 
-          <div style={{ marginBottom: 28, textAlign: 'left' }}>
+          {/* Leaderboard */}
+          <div style={{ marginBottom: 22, textAlign: 'left' }}>
             {sorted.map((p, i) => {
-              const c = PLAYER_COLORS.find(x => x.id === p.color)?.hex ?? '#58a6ff'
+              const c = PLAYER_COLORS.find(x => x.id === p.color)?.hex ?? 'var(--teal)'
               return (
-                <div key={p.id} className="result-stat" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', marginBottom: 8 }}>
-                  <span style={{ width: 22, color: 'var(--text-muted)', fontFamily: 'var(--font-jetbrains-mono), monospace', fontSize: 13 }}>#{i + 1}</span>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: c, flexShrink: 0, display: 'inline-block' }} />
-                  <span className="mp-break-text" style={{ flex: 1, minWidth: 0, fontFamily: 'var(--font-outfit), sans-serif', fontSize: 15, color: p.id === selfId ? c : 'var(--text-primary)' }}>
+                <div key={p.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 9,
+                  padding: '9px 12px', marginBottom: 6,
+                  background: 'var(--surface-control)',
+                  border: '1px solid var(--border-control)',
+                  borderRadius: 'var(--r-control)',
+                }}>
+                  <span style={{
+                    width: 18, color: 'var(--ink-tertiary)',
+                    fontFamily: 'var(--font-geist-mono), monospace', fontSize: 12,
+                  }}>#{i+1}</span>
+                  <span style={{
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: c, flexShrink: 0, display: 'inline-block',
+                  }} />
+                  <span className="mp-break-text" style={{
+                    flex: 1, minWidth: 0,
+                    fontFamily: 'var(--font-geist), system-ui, sans-serif',
+                    fontSize: 13.5,
+                    color: p.id === selfId ? 'var(--teal)' : 'var(--ink)',
+                    fontWeight: p.id === selfId ? 600 : 400,
+                  }}>
                     {p.name}{p.id === selfId ? ' (you)' : ''}
                   </span>
-                  <span style={{ fontFamily: 'var(--font-jetbrains-mono), monospace', fontSize: 14, color: 'var(--text-secondary)', flexShrink: 0 }}>{p.wpm} wpm</span>
+                  <span style={{
+                    fontFamily: 'var(--font-geist-mono), monospace',
+                    fontSize: 13, color: 'var(--ink-secondary)', flexShrink: 0,
+                  }}>
+                    {p.wpm} wpm
+                  </span>
                 </div>
               )
             })}
           </div>
 
-          {isSelfWinner ? (
+          {/* Actions */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {isSelfWinner && (
+              <button
+                type="button"
+                className="restart-btn"
+                onClick={() => { setCelebrating(true); setTimeout(() => setCelebrating(false), 3000) }}
+                style={{
+                  width: '100%', justifyContent: 'center', padding: '10px 18px',
+                  borderColor: `${winnerColor}44`,
+                  color: winnerColor,
+                }}
+              >
+                Celebrate 🎉
+              </button>
+            )}
             <button
               type="button"
               className="restart-btn"
-              onClick={() => startCelebration()}
-              style={{ width: '100%', justifyContent: 'center', padding: '13px 20px', marginBottom: 10, background: `${winnerColor}22`, borderColor: `${winnerColor}66`, color: winnerColor }}
+              onClick={onPlayAgain}
+              style={{ width: '100%', justifyContent: 'center', padding: '10px 18px' }}
             >
-              Celebrate!!!
+              Play Again
             </button>
-          ) : (
-            <div style={{ visibility: 'hidden', height: 'auto', marginBottom: 10 }}>
-              <button type="button" className="restart-btn"
-                style={{ width: '100%', justifyContent: 'center', padding: '13px 20px' }}
-                tabIndex={-1} aria-hidden="true">
-                Celebrate!!!
-              </button>
-            </div>
-          )}
-          <button type="button" className="restart-btn" onClick={onPlayAgain}
-            style={{ width: '100%', justifyContent: 'center', padding: '13px 20px' }}>
-            Play Again
-          </button>
-          <Link href="/" className="restart-btn"
-            style={{ width: '100%', justifyContent: 'center', padding: '13px 20px', marginTop: 10, textDecoration: 'none' }}>
-            Practice Solo
-          </Link>
+            <Link
+              href="/"
+              className="restart-btn"
+              style={{ width: '100%', justifyContent: 'center', padding: '10px 18px', textDecoration: 'none' }}
+            >
+              Practice Solo
+            </Link>
+          </div>
         </motion.div>
       </motion.div>
     </>

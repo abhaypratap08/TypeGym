@@ -11,24 +11,28 @@ interface LiveMetricsProps {
 }
 
 /**
- * LiveMetrics — displays WPM, accuracy, and timer while the test is active.
- * Memoized; only re-renders when metric values actually change.
+ * LiveMetrics — compact pill panel displayed above the typing area while active.
+ * Uses restrained color: teal for WPM, coral only when accuracy is poor or time
+ * is running out. Muted ink-tertiary labels keep the UI quiet.
  */
 const LiveMetrics = memo(function LiveMetrics({
   wpm, accuracy, timeLeft, mode,
 }: LiveMetricsProps) {
   const accColor =
-    accuracy >= 95 ? 'var(--accent-green)'  :
+    accuracy >= 95 ? 'var(--teal)'   :
     accuracy >= 80 ? 'var(--accent-orange)' :
-                     'var(--accent-red)'
+                     'var(--coral)'
 
-  const timeColor = timeLeft <= 10 ? 'var(--accent-red)' : 'var(--text-primary)'
+  const timeColor = timeLeft <= 10 ? 'var(--coral)' : 'var(--ink)'
 
   return (
-    <div className="metrics-row">
+    <div
+      className="metrics-row"
+      aria-label={`Live stats: ${wpm} wpm, ${accuracy}% accuracy${mode === 'time' ? `, ${timeLeft}s left` : ''}`}
+    >
       <div className="metric-card">
         <div className="metric-label">wpm</div>
-        <div className="metric-value" style={{ color: 'var(--accent-blue)' }}>
+        <div className="metric-value" style={{ color: 'var(--teal)' }}>
           {wpm}
         </div>
       </div>
@@ -36,7 +40,7 @@ const LiveMetrics = memo(function LiveMetrics({
       <div className="metric-card">
         <div className="metric-label">acc</div>
         <div className="metric-value" style={{ color: accColor }}>
-          {accuracy}<span style={{ fontSize: 14 }}>%</span>
+          {accuracy}<span style={{ fontSize: 12, fontWeight: 500 }}>%</span>
         </div>
       </div>
 

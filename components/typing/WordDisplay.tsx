@@ -1,20 +1,21 @@
 'use client'
 
 import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
 import type { WordResult } from '@/hooks/useTypingEngine'
 
 // ─── Cursor ───────────────────────────────────────────────────────────────────
 
 type CursorPlacement = 'before' | 'after'
 
-/** Smooth caret that follows the active character using shared layout animation. */
+/**
+ * Pure-CSS blinking caret. No Framer Motion layoutId — avoids layout
+ * measurement (reflow) on every keystroke. The cursor position is driven
+ * entirely by which <span> it lives inside; CSS handles the blink animation.
+ */
 const Cursor = memo(function Cursor({ placement = 'before' }: { placement?: CursorPlacement }) {
   return (
-    <motion.span
-      layoutId="typing-caret"
+    <span
       className={`typing-cursor cursor-${placement}`}
-      transition={{ type: 'spring', stiffness: 760, damping: 44, mass: 0.28 }}
       aria-hidden="true"
     />
   )
@@ -23,9 +24,9 @@ const Cursor = memo(function Cursor({ placement = 'before' }: { placement?: Curs
 // ─── Single character ─────────────────────────────────────────────────────────
 
 interface CharProps {
-  ch:         string
-  state:      'correct' | 'incorrect' | 'pending'
-  cursor?:    CursorPlacement
+  ch:      string
+  state:   'correct' | 'incorrect' | 'pending'
+  cursor?: CursorPlacement
 }
 
 const Char = memo(function Char({ ch, state, cursor }: CharProps) {
@@ -37,80 +38,103 @@ const Char = memo(function Char({ ch, state, cursor }: CharProps) {
   )
 })
 
-// ─── Single word ──────────────────────────────────────────────────────────────
+// ─── Current word (receives live input) ───────────────────────────────────────
 
-interface WordProps {
+interface CurrentWordProps {
   word:    string
   wordIdx: number
-  curIdx:  number
   input:   string
-  results: WordResult[]
 }
 
 /**
- * Word — renders one word with per-character state coloring.
- *
- * Three visual states per character:
- *   correct   — typed char matches expected  → accent blue
- *   incorrect — typed char doesn't match     → accent red + dim bg
- *   pending   — not yet typed                → dim gray
- *
- * Extra characters (typed beyond word length) shown with red underline.
- * Cursor (blinking bar) is rendered before the next untyped character.
+ * Renders the word the user is currently typing. Re-renders on every keystroke
+ * but only this single word does so, not the whole list.
  */
-const Word = memo(function Word({ word, wordIdx, curIdx, input, results }: WordProps) {
-  const isCompleted = wordIdx < curIdx
-  const isCurrent   = wordIdx === curIdx
-  const result      = results[wordIdx]
-
-  // Wavy underline if the whole word was typed wrong
-  const isWrong = isCompleted && result && result.typed !== result.word
-
+const CurrentWord = memo(function CurrentWord({ word, wordIdx, input }: CurrentWordProps) {
   return (
     <span
       data-word-idx={wordIdx}
-      className={[
-        'typing-word',
-        isCompleted ? 'word-completed' : '',
-        isCurrent ? 'word-current' : '',
-        isWrong   ? 'word-wrong'   : '',
-      ].join(' ')}
+      className="typing-word word-current"
     >
       {word.split('').map((ch, ci) => {
         let state: 'correct' | 'incorrect' | 'pending' = 'pending'
         let cursor: CursorPlacement | undefined
 
-        if (isCurrent) {
-          if (ci === input.length) {
-            cursor = 'before'
-          } else if (ci < input.length) {
-            state = input[ci] === ch ? 'correct' : 'incorrect'
-          }
+        if (ci === input.length) {
+          cursor = 'before'
+        } else if (ci < input.length) {
+          state = input[ci] === ch ? 'correct' : 'incorrect'
+        }
 
-          if (ci === word.length - 1 && input.length === word.length) {
-            cursor = 'after'
-          }
-          // ci > input.length → stays 'pending'
-        } else if (isCompleted && result) {
-          const tc = result.typed[ci]
-          if (tc !== undefined) state = tc === ch ? 'correct' : 'incorrect'
+        if (ci === word.length - 1 && input.length === word.length) {
+          cursor = 'after'
         }
 
         return <Char key={ci} ch={ch} state={state} cursor={cursor} />
       })}
 
       {/* Extra chars typed beyond word length */}
-      {isCurrent && input.length > word.length &&
+      {input.length > word.length &&
         input.slice(word.length).split('').map((ch, i, extraChars) => {
-          const isLastExtraChar = i === extraChars.length - 1
-
+          const isLast = i === extraChars.length - 1
           return (
             <span key={`extra-${i}`} className="typing-char char-extra">
-              {isLastExtraChar && <Cursor placement="after" />}
+              {isLast && <Cursor placement="after" />}
               {ch}
             </span>
           )
         })}
+    </span>
+  )
+})
+
+// ─── Completed word (only re-renders when its result changes) ─────────────────
+
+interface CompletedWordProps {
+  word:    string
+  wordIdx: number
+  result:  WordResult | undefined
+}
+
+/**
+ * Renders a word that has already been committed. Receives only its own
+ * stable `result` — never `input` — so it never re-renders on keystrokes.
+ */
+const CompletedWord = memo(function CompletedWord({ word, wordIdx, result }: CompletedWordProps) {
+  const isWrong = result && result.typed !== result.word
+  return (
+    <span
+      data-word-idx={wordIdx}
+      className={[
+        'typing-word word-completed',
+        isWrong ? 'word-wrong' : '',
+      ].join(' ')}
+    >
+      {word.split('').map((ch, ci) => {
+        let state: 'correct' | 'incorrect' | 'pending' = 'pending'
+        if (result) {
+          const tc = result.typed[ci]
+          if (tc !== undefined) state = tc === ch ? 'correct' : 'incorrect'
+        }
+        return <Char key={ci} ch={ch} state={state} />
+      })}
+    </span>
+  )
+})
+
+// ─── Pending word (never re-renders unless word text changes) ─────────────────
+
+interface PendingWordProps {
+  word:    string
+  wordIdx: number
+}
+
+const PendingWord = memo(function PendingWord({ word, wordIdx }: PendingWordProps) {
+  return (
+    <span data-word-idx={wordIdx} className="typing-word">
+      {word.split('').map((ch, ci) => (
+        <Char key={ci} ch={ch} state="pending" />
+      ))}
     </span>
   )
 })
@@ -128,8 +152,12 @@ interface WordDisplayProps {
 /**
  * WordDisplay — renders a windowed slice of words.
  *
- * Keeps the current visual line stable. The window advances only after the
- * cursor moves onto the next rendered line.
+ * The window advances once the active word moves to a new visual line.
+ * Each word type is rendered by a dedicated memoized component so re-renders
+ * are isolated:
+ *   - CurrentWord   → re-renders per keystroke (one word only)
+ *   - CompletedWord → re-renders only when its WordResult changes (on commit)
+ *   - PendingWord   → never re-renders unless the word list itself changes
  */
 export default function WordDisplay({
   words, curIdx, input, results, isIdle,
@@ -163,7 +191,9 @@ export default function WordDisplay({
     return () => window.removeEventListener('resize', onResize)
   }, [curIdx])
 
-  // Render from the start of the current visual line, not from the current word.
+  // Only recompute the window slice when the word list or indices change —
+  // NOT when `input` changes. This keeps PendingWord and CompletedWord
+  // stable across keystrokes.
   const wordWindow = useMemo(() => {
     const start = visibleStartIdx
     const end   = Math.min(words.length, curIdx + 60)
@@ -172,7 +202,6 @@ export default function WordDisplay({
 
   return (
     <div className="word-display">
-      {/* Words */}
       <div
         ref={textRef}
         className="word-display-text"
@@ -184,16 +213,35 @@ export default function WordDisplay({
         role="textbox"
         aria-readonly="true"
       >
-        {wordWindow.map(({ w, idx }) => (
-          <Word
-            key={`${idx}-${w}`}
-            word={w}
-            wordIdx={idx}
-            curIdx={curIdx}
-            input={input}
-            results={results}
-          />
-        ))}
+        {wordWindow.map(({ w, idx }) => {
+          if (idx === curIdx) {
+            return (
+              <CurrentWord
+                key={`cur-${idx}`}
+                word={w}
+                wordIdx={idx}
+                input={input}
+              />
+            )
+          }
+          if (idx < curIdx) {
+            return (
+              <CompletedWord
+                key={`done-${idx}`}
+                word={w}
+                wordIdx={idx}
+                result={results[idx]}
+              />
+            )
+          }
+          return (
+            <PendingWord
+              key={`pending-${idx}`}
+              word={w}
+              wordIdx={idx}
+            />
+          )
+        })}
       </div>
     </div>
   )
