@@ -289,7 +289,97 @@ kbd { display: inline-block; padding: .125rem .375rem; border: 1px solid var(--b
 .mp-waiting-controls { display: flex; flex-direction: column; align-items: center; gap: 1rem; max-width: 100%; }
 .mp-waiting-hint { text-align: center; }
 .mp-results { text-align: center; }
-.mp-result-trophy { margin: 0 auto 1rem; width: 4rem; height: 4rem; }
+/* Winner trophy — one settled entrance + ring pulse, no looping motion */
+.mp-trophy-wrap {
+  position: relative;
+  width: 4rem;
+  height: 4rem;
+  margin: 0 auto 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mp-trophy-wrap.is-winner {
+  width: 6rem;
+  height: 6rem;
+}
+
+.mp-result-trophy {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(
+    0 10px 24px
+    color-mix(
+      in srgb,
+      var(--winner-color, var(--teal)) 30%,
+      transparent
+    )
+  );
+}
+
+.mp-trophy-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-pill);
+  border: 2px solid color-mix(
+    in srgb,
+    var(--winner-color, var(--teal)) 55%,
+    transparent
+  );
+  animation: mp-trophy-ring-expand 900ms cubic-bezier(.16, 1, .3, 1) 1;
+  pointer-events: none;
+}
+
+@keyframes mp-trophy-ring-expand {
+  from {
+    transform: scale(.6);
+    opacity: .9;
+  }
+
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+.mp-results {
+  position: relative;
+  overflow: hidden;
+}
+
+.mp-confetti-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.mp-trophy-wrap,
+.mp-trophy-wrap > * {
+  position: relative;
+  z-index: 1;
+}
+
+.mp-confetti-canvas {
+  z-index: 0;
+}
+
+@media (max-width: 40rem) {
+  .mp-trophy-wrap.is-winner {
+    width: 4.5rem;
+    height: 4.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-trophy-ring {
+    animation: none;
+    display: none;
+  }
+}
 .mp-break-text { overflow-wrap: anywhere; }
 .mp-winner-name { margin-bottom: .625rem; }
 .mp-winner-speed { font-size: 2rem; line-height: 1.2; font-weight: 600; color: var(--teal); letter-spacing: -.04em; }
@@ -387,4 +477,933 @@ kbd { display: inline-block; padding: .125rem .375rem; border: 1px solid var(--b
   .char-correct { font-weight: 700; }
   .word-current { outline: 1px solid Highlight; }
   .typing-cursor, .progress-fill, .result-progress, .mp-lane-progress { background: Highlight; forced-color-adjust: none; }
+}
+
+/* Celebrate button overlay */
+.mp-celebration-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.mp-celebration-backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--surface-window) 82%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.mp-celebration-panel {
+  position: relative;
+  z-index: 2;
+  width: min(90vw, 560px);
+  padding: 3.5rem 2rem 2.5rem;
+  text-align: center;
+}
+
+.mp-celebration-trophy {
+  position: relative;
+  display: block;
+  margin: 0 auto 1.25rem;
+  width: 6rem;
+  height: 6rem;
+  filter: drop-shadow(
+    0 18px 36px
+    color-mix(in srgb, var(--teal) 35%, transparent)
+  );
+}
+
+.mp-celebration-kicker {
+  position: relative;
+  margin: 0 0 .5rem;
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .24em;
+}
+
+.mp-celebration-panel h2 {
+  position: relative;
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  line-height: .95;
+}
+
+.mp-celebration-winner {
+  position: relative;
+  margin: 1.2rem 0 0;
+  font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+  overflow-wrap: anywhere;
+}
+
+.mp-celebration-wpm {
+  position: relative;
+  display: block;
+  margin-top: .5rem;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+}
+
+.mp-celebration-close {
+  position: relative;
+  margin-top: 2rem;
+  min-width: 120px;
+}
+
+.mp-celebration-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mp-celebration-piece {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 7px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--teal);
+  opacity: 0;
+  animation: mp-celebration-piece 1.5s ease-out forwards;
+}
+
+.piece-1  { --x: -240px; --y: -150px; animation-delay: 20ms; }
+.piece-2  { --x: -200px; --y: -220px; animation-delay: 70ms; }
+.piece-3  { --x: -150px; --y: -180px; animation-delay: 120ms; }
+.piece-4  { --x: -100px; --y: -240px; animation-delay: 170ms; }
+.piece-5  { --x: -45px;  --y: -200px; animation-delay: 220ms; }
+.piece-6  { --x: 45px;   --y: -200px; animation-delay: 130ms; }
+.piece-7  { --x: 100px;  --y: -240px; animation-delay: 180ms; }
+.piece-8  { --x: 150px;  --y: -180px; animation-delay: 230ms; }
+.piece-9  { --x: 200px;  --y: -220px; animation-delay: 90ms; }
+.piece-10 { --x: 240px;  --y: -150px; animation-delay: 40ms; }
+.piece-11 { --x: -220px; --y: -80px;  animation-delay: 260ms; }
+.piece-12 { --x: 220px;  --y: -80px;  animation-delay: 150ms; }
+.piece-13 { --x: -170px; --y: -110px; animation-delay: 200ms; }
+.piece-14 { --x: 170px;  --y: -110px; animation-delay: 110ms; }
+.piece-15 { --x: -75px;  --y: -150px; animation-delay: 250ms; }
+.piece-16 { --x: 75px;   --y: -150px; animation-delay: 160ms; }
+
+@keyframes mp-celebration-piece {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(.25) rotate(0deg);
+  }
+
+  15% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(var(--x), var(--y)) scale(1) rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-celebration-piece {
+    animation: none;
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .mp-celebration-panel {
+    padding: 2.5rem 1rem 2rem;
+  }
+
+  .mp-celebration-trophy {
+    width: 5rem;
+    height: 5rem;
+  }
+}
+
+
+/* Winner icon rolling rings */
+.mp-celebration-icon {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin: 0 auto 2rem;
+  display: grid;
+  place-items: center;
+}
+
+.mp-celebration-icon-core {
+  position: relative;
+  z-index: 5;
+  width: 142px;
+  height: 142px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface-window) 94%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--teal) 22%, transparent),
+    0 16px 40px color-mix(in srgb, var(--teal) 24%, transparent);
+}
+
+.mp-celebration-trophy {
+  width: 112px;
+  height: 112px;
+  margin: 0;
+  filter: drop-shadow(
+    0 10px 28px
+    color-mix(in srgb, var(--teal) 32%, transparent)
+  );
+  transform-origin: center;
+  animation: mp-trophy-rotate 4s linear infinite;
+}
+
+.mp-celebration-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 142px;
+  height: 142px;
+  border: 2px solid color-mix(in srgb, var(--winner-color) 52%, transparent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(.72);
+  opacity: 0;
+  pointer-events: none;
+  animation: mp-ring-roll 2.4s cubic-bezier(.16, 1, .3, 1) infinite;
+}
+
+.mp-celebration-ring::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in srgb, var(--winner-color) 78%, transparent) 55deg,
+    transparent 100deg,
+    transparent 360deg
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 1px),
+    #000 calc(100% - 1px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 1px),
+    #000 calc(100% - 1px)
+  );
+}
+
+.ring-1 { animation-delay: 0s; }
+.ring-2 { animation-delay: .6s; }
+.ring-3 { animation-delay: 1.2s; }
+.ring-4 { animation-delay: 1.8s; }
+
+
+@keyframes mp-trophy-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes mp-ring-roll {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(.72);
+  }
+
+  10% {
+    opacity: .75;
+  }
+
+  55% {
+    opacity: .35;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.85);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-celebration-trophy {
+    animation: none;
+  }
+
+  .mp-celebration-ring {
+    animation: none;
+    opacity: .18;
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+
+  .ring-2,
+  .ring-3,
+  .ring-4 {
+    display: none;
+  }
+}
+
+
+/* Celebration typography: match the core TypeGym design system */
+.mp-celebration-panel {
+  font-family: var(--font-system);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.mp-celebration-kicker {
+  color: var(--teal);
+  font-family: var(--font-system);
+  font-size: .6875rem;
+  font-weight: 650;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.mp-celebration-panel h2 {
+  color: var(--ink);
+  font-family: var(--font-system);
+  font-weight: 650;
+  letter-spacing: -.045em;
+  line-height: 1.05;
+}
+
+.mp-celebration-winner {
+  color: var(--ink-secondary);
+  font-family: var(--font-system);
+  font-size: 1rem;
+  font-weight: 550;
+  letter-spacing: -.01em;
+  line-height: 1.4;
+}
+
+.mp-celebration-wpm {
+  color: var(--ink);
+  font-family: var(--font-system);
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: 550;
+  letter-spacing: -.035em;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+.mp-celebration-close {
+  font-family: var(--font-system);
+  font-weight: 600;
+}
+
+
+/* Trophy: one playful wobble/spin per fixed cycle */
+.mp-celebration-trophy {
+  transform-origin: center;
+  animation: mp-trophy-wobble 4s ease-in-out infinite;
+}
+
+@keyframes mp-trophy-wobble {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+
+  3% {
+    transform: rotate(-8deg) scale(1.02);
+  }
+
+  6% {
+    transform: rotate(8deg) scale(1.04);
+  }
+
+  9% {
+    transform: rotate(-5deg) scale(1.02);
+  }
+
+  12% {
+    transform: rotate(360deg) scale(1);
+  }
+
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-celebration-trophy {
+    animation: none;
+  }
+}
+
+
+
+/* Winner trophy: larger + clearly visible periodic rotation */
+.mp-celebration-trophy {
+  width: 112px;
+  height: 112px;
+  margin: 0;
+  transform-origin: center;
+  animation: mp-trophy-evident-spin 4.5s ease-in-out infinite;
+  filter: drop-shadow(
+    0 14px 30px
+    color-mix(in srgb, var(--teal) 34%, transparent)
+  );
+}
+
+@keyframes mp-trophy-evident-spin {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+
+  8% {
+    transform: rotate(-10deg) scale(1.04);
+  }
+
+  14% {
+    transform: rotate(12deg) scale(1.06);
+  }
+
+  20% {
+    transform: rotate(360deg) scale(1);
+  }
+
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-celebration-trophy {
+    animation: none;
+  }
+}
+
+/* Multiplayer winner celebration */
+.mp-trophy-wrap {
+  position: relative;
+  width: 4rem;
+  height: 4rem;
+  margin: 0 auto 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mp-trophy-wrap.is-winner {
+  width: 6rem;
+  height: 6rem;
+}
+
+.mp-result-trophy {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(
+    0 10px 24px
+    color-mix(
+      in srgb,
+      var(--winner-color, var(--teal)) 30%,
+      transparent
+    )
+  );
+}
+
+.mp-trophy-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-pill);
+  border: 2px solid
+    color-mix(
+      in srgb,
+      var(--winner-color, var(--teal)) 55%,
+      transparent
+    );
+  animation: mp-trophy-ring-expand 700ms cubic-bezier(.16, 1, .3, 1) 1;
+  pointer-events: none;
+}
+
+@keyframes mp-trophy-ring-expand {
+  from {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.mp-winner-speed-odometer {
+  font-variant-numeric: tabular-nums;
+}
+
+.mp-results {
+  position: relative;
+  overflow: hidden;
+}
+
+.mp-confetti-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.mp-results > *:not(.mp-confetti-canvas) {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 40rem) {
+  .mp-trophy-wrap.is-winner {
+    width: 4.5rem;
+    height: 4.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-trophy-ring {
+    animation: none;
+    display: none;
+  }
+}
+
+
+/* Multiplayer winner trophy */
+
+.mp-trophy-wrap {
+  position: relative;
+  width: 4rem;
+  height: 4rem;
+  margin: 0 auto 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mp-trophy-wrap.is-winner {
+  width: 6rem;
+  height: 6rem;
+}
+
+.mp-result-trophy {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(
+    0 10px 24px
+    color-mix(
+      in srgb,
+      var(--winner-color, var(--teal)) 30%,
+      transparent
+    )
+  );
+}
+
+.mp-winner-speed-odometer {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 40rem) {
+  .mp-trophy-wrap.is-winner {
+    width: 4.5rem;
+    height: 4.5rem;
+  }
+}
+
+/* =========================================================
+   Glass Amoeba Celebration
+   ========================================================= */
+
+.mp-celebrate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 1rem;
+
+  cursor: pointer;
+
+  /* Only the page gets a light veil. */
+  background: rgba(0, 0, 0, 0.34);
+
+  backdrop-filter: blur(12px) saturate(110%);
+  -webkit-backdrop-filter: blur(12px) saturate(110%);
+}
+
+.mp-celebrate-panel {
+  position: relative;
+
+  width: min(34rem, 86vw);
+  aspect-ratio: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  isolation: isolate;
+
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+
+  overflow: visible;
+}
+
+.mp-celebrate-orb {
+  position: absolute;
+  inset: 0;
+
+  z-index: 0;
+
+  border-radius:
+    57% 43% 64% 36% /
+    44% 61% 39% 56%;
+
+  cursor: grab;
+  touch-action: none;
+
+  transition:
+    transform 560ms cubic-bezier(.16,1,.3,1);
+
+  filter:
+    drop-shadow(
+      0 32px 80px rgba(0, 0, 0, 0.28)
+    );
+
+  animation:
+    mp-orb-rotation 42s linear infinite;
+}
+
+.mp-celebrate-orb.is-pressed {
+  cursor: grabbing;
+}
+
+.mp-celebrate-orb-shape {
+  position: absolute;
+  inset: 0;
+
+  border-radius:
+    inherit;
+
+  border: 1.5px solid
+    rgba(255, 255, 255, 0.38);
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.16),
+      rgba(255, 255, 255, 0.075) 35%,
+      rgba(255, 255, 255, 0.035) 65%,
+      rgba(255, 255, 255, 0.095)
+    );
+
+  box-shadow:
+    inset 0 1px 0
+      rgba(255, 255, 255, 0.38),
+
+    inset 12px 12px 40px
+      rgba(255, 255, 255, 0.035),
+
+    inset -18px -20px 55px
+      rgba(0, 0, 0, 0.08),
+
+    0 0 0 1px
+      rgba(255, 255, 255, 0.055);
+
+  backdrop-filter:
+    blur(28px)
+    saturate(135%);
+
+  -webkit-backdrop-filter:
+    blur(28px)
+    saturate(135%);
+
+  animation:
+    mp-orb-morph 9s ease-in-out infinite;
+}
+
+/* Bright glass reflection */
+.mp-celebrate-orb-shape::before {
+  content: "";
+
+  position: absolute;
+  inset: 1.5%;
+
+  border-radius: inherit;
+
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      ellipse 48% 32% at 27% 17%,
+      rgba(255, 255, 255, 0.32),
+      rgba(255, 255, 255, 0.11) 30%,
+      transparent 67%
+    ),
+
+    radial-gradient(
+      ellipse 34% 28% at 75% 79%,
+      rgba(255, 255, 255, 0.09),
+      transparent 70%
+    );
+
+  filter: blur(2px);
+
+  animation:
+    mp-glass-highlight 12s ease-in-out infinite;
+}
+
+/* Very subtle winner-color rim. */
+.mp-celebrate-orb-shape::after {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  border-radius: inherit;
+
+  pointer-events: none;
+
+  box-shadow:
+    0 0 35px
+    color-mix(
+      in srgb,
+      var(--winner-color, var(--teal)) 8%,
+      transparent
+    );
+}
+
+@keyframes mp-orb-morph {
+  0% {
+    border-radius:
+      57% 43% 64% 36% /
+      44% 61% 39% 56%;
+  }
+
+  12% {
+    border-radius:
+      69% 31% 47% 53% /
+      57% 39% 61% 43%;
+  }
+
+  24% {
+    border-radius:
+      38% 62% 56% 44% /
+      68% 42% 58% 32%;
+  }
+
+  36% {
+    border-radius:
+      63% 37% 34% 66% /
+      40% 65% 35% 60%;
+  }
+
+  48% {
+    border-radius:
+      45% 55% 70% 30% /
+      61% 45% 55% 39%;
+  }
+
+  60% {
+    border-radius:
+      72% 28% 43% 57% /
+      43% 65% 35% 57%;
+  }
+
+  72% {
+    border-radius:
+      34% 66% 60% 40% /
+      63% 34% 66% 37%;
+  }
+
+  84% {
+    border-radius:
+      65% 35% 48% 52% /
+      36% 60% 40% 64%;
+  }
+
+  100% {
+    border-radius:
+      57% 43% 64% 36% /
+      44% 61% 39% 56%;
+  }
+}
+
+@keyframes mp-orb-rotation {
+  from {
+    rotate: 0deg;
+  }
+
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes mp-glass-highlight {
+  0% {
+    transform:
+      translate(-2%, -2%)
+      scale(0.95);
+
+    opacity: 0.65;
+  }
+
+  25% {
+    transform:
+      translate(3%, 3%)
+      scale(1.05);
+
+    opacity: 0.92;
+  }
+
+  50% {
+    transform:
+      translate(5%, -2%)
+      scale(0.98);
+
+    opacity: 0.68;
+  }
+
+  75% {
+    transform:
+      translate(-4%, 3%)
+      scale(1.06);
+
+    opacity: 0.88;
+  }
+
+  100% {
+    transform:
+      translate(-2%, -2%)
+      scale(0.95);
+
+    opacity: 0.65;
+  }
+}
+
+/* Content is independent from every orb transform. */
+.mp-celebrate-content {
+  position: relative;
+  z-index: 2;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  pointer-events: none;
+
+  text-align: center;
+}
+
+.mp-celebrate-kicker {
+  margin: 0 0 0.85rem;
+
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+
+  color: var(--winner-color, var(--teal));
+}
+
+.mp-celebrate-trophy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0 0 0.7rem;
+
+  transform: none !important;
+}
+
+.mp-celebrate-trophy img {
+  width: 128px;
+  height: 128px;
+
+  object-fit: contain;
+
+  transform: none !important;
+
+  filter:
+    drop-shadow(
+      0 14px 26px rgba(0, 0, 0, 0.2)
+    );
+}
+
+.mp-celebrate-panel h2 {
+  margin: 0;
+
+  font-size: clamp(2rem, 7vw, 3.3rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.mp-celebrate-name {
+  margin: 0.55rem 0 0;
+
+  font-size: 0.98rem;
+  font-weight: 600;
+
+  color: var(--text-muted);
+}
+
+.mp-celebrate-wpm {
+  margin: 0.65rem 0 0;
+
+  font-family: var(--font-mono);
+  font-size: clamp(2.3rem, 8vw, 4rem);
+  line-height: 1;
+  font-weight: 800;
+
+  font-variant-numeric: tabular-nums;
+
+  color: var(--winner-color, var(--teal));
+
+  text-shadow:
+    0 0 28px
+    color-mix(
+      in srgb,
+      var(--winner-color, var(--teal)) 18%,
+      transparent
+    );
+}
+
+.mp-celebrate-wpm span {
+  font-size: 0.68em;
+  opacity: 0.78;
+}
+
+.mp-celebrate-message {
+  margin: 0.75rem 0 0;
+
+  color: var(--text-muted);
+}
+
+@media (max-width: 40rem) {
+  .mp-celebrate-panel {
+    width: min(24rem, 90vw);
+  }
+
+  .mp-celebrate-trophy img {
+    width: 100px;
+    height: 100px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-celebrate-orb,
+  .mp-celebrate-orb-shape,
+  .mp-celebrate-orb-shape::before {
+    animation: none;
+  }
 }
