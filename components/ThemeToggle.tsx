@@ -1,28 +1,15 @@
 'use client'
 
-/**
- * ThemeToggle.tsx
- * ===============
- * Circular button in the titlebar that switches between light and dark theme.
- *
- * Animation:
- *   - The icon morphs between ☀ and ☾ using Framer Motion AnimatePresence
- *     with a small scale + rotate exit/enter so it feels like a flip.
- *   - On click it reads its own bounding rect and passes the center coords
- *     to useTheme.toggle() so the View Transitions reveal originates from
- *     the button itself.
- */
-
-import { useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useTheme, type Theme } from '@/hooks/useTheme'
+import { motion, useReducedMotion } from 'framer-motion'
+import { useTheme } from '@/hooks/useTheme'
+import { FADE_TRANSITION } from '@/lib/motion'
 
 // ── Icon components ───────────────────────────────────────────────────────────
 
 function SunIcon() {
   return (
     <svg
-      width="14" height="14" viewBox="0 0 24 24"
+      width="18" height="18" viewBox="0 0 24 24"
       fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
       aria-hidden="true"
@@ -43,7 +30,7 @@ function SunIcon() {
 function MoonIcon() {
   return (
     <svg
-      width="13" height="13" viewBox="0 0 24 24"
+      width="18" height="18" viewBox="0 0 24 24"
       fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
       aria-hidden="true"
@@ -53,18 +40,6 @@ function MoonIcon() {
   )
 }
 
-// ── Framer Motion icon variants ───────────────────────────────────────────────
-
-const iconEnter = {
-  initial:  { opacity: 0, scale: 0.4, rotate: -30 },
-  animate:  { opacity: 1, scale: 1,   rotate: 0,
-    transition: { type: 'spring', stiffness: 420, damping: 24, mass: 0.6 } },
-  exit:     { opacity: 0, scale: 0.4, rotate: 30,
-    transition: { duration: 0.16, ease: 'easeIn' } },
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
 interface ThemeToggleProps {
   /** Extra class names forwarded to the button */
   className?: string
@@ -72,46 +47,38 @@ interface ThemeToggleProps {
 
 export default function ThemeToggle({ className }: ThemeToggleProps) {
   const { theme, toggle } = useTheme()
-  const btnRef = useRef<HTMLButtonElement>(null)
-
-  const handleClick = () => {
-    const rect = btnRef.current?.getBoundingClientRect()
-    const x = rect ? rect.left + rect.width  / 2 : window.innerWidth  / 2
-    const y = rect ? rect.top  + rect.height / 2 : window.innerHeight / 2
-    toggle(x, y)
-  }
+  const reducedMotion = useReducedMotion()
+  const transition = reducedMotion ? { ...FADE_TRANSITION, duration: 0.1 } : FADE_TRANSITION
 
   const isDark  = theme === 'dark'
   const label   = isDark ? 'Switch to light theme' : 'Switch to dark theme'
 
   return (
     <button
-      ref={btnRef}
       className={`theme-toggle${className ? ` ${className}` : ''}`}
-      onClick={handleClick}
+      onClick={toggle}
       aria-label={label}
       title={label}
       type="button"
     >
-      <AnimatePresence mode="wait" initial={false}>
-        {isDark ? (
-          <motion.span
-            key="sun"
-            {...iconEnter}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <SunIcon />
-          </motion.span>
-        ) : (
-          <motion.span
-            key="moon"
-            {...iconEnter}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <MoonIcon />
-          </motion.span>
-        )}
-      </AnimatePresence>
+      <motion.span
+        className="theme-toggle-icon"
+        initial={false}
+        animate={{ opacity: isDark ? 1 : 0 }}
+        transition={transition}
+        aria-hidden="true"
+      >
+        <SunIcon />
+      </motion.span>
+      <motion.span
+        className="theme-toggle-icon"
+        initial={false}
+        animate={{ opacity: isDark ? 0 : 1 }}
+        transition={transition}
+        aria-hidden="true"
+      >
+        <MoonIcon />
+      </motion.span>
     </button>
   )
 }

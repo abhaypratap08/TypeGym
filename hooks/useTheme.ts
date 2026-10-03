@@ -10,9 +10,8 @@
  *   2. prefers-color-scheme     (OS setting, used when no stored pref)
  *   3. 'light'                  (hardcoded fallback)
  *
- * Applies the theme by setting data-theme="dark" | "light" on <html>.
- * The toggle uses the View Transitions API (document.startViewTransition)
- * so the CSS clip-path reveal animation fires on every switch.
+ * Applies data-theme immediately; CSS owns the interruptible color transition.
+ * Only an explicit toggle writes a preference to storage.
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -20,6 +19,7 @@ import { useState, useEffect, useCallback } from 'react'
 export type Theme = 'light' | 'dark'
 
 const STORAGE_KEY = 'tg-theme'
+const THEME_CHANGE_EVENT = 'tg-theme-change'
 
 function getSystemTheme(): Theme {
   if (typeof window === 'undefined') return 'light'
@@ -36,60 +36,62 @@ function getStoredTheme(): Theme | null {
 
 function applyTheme(theme: Theme) {
   document.documentElement.setAttribute('data-theme', theme)
-  try { localStorage.setItem(STORAGE_KEY, theme) } catch {}
 }
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>('light')
 
-  // On mount: read stored pref or system pref
   useEffect(() => {
-    const initial = getStoredTheme() ?? getSystemTheme()
-    setTheme(initial)
-    applyTheme(initial)
+    const syncTheme = (next: Theme) => {
+      applyTheme(next)
+      setTheme(next)
+    }
 
-    // Keep in sync if OS preference changes while no explicit user pref exists
+    syncTheme(getStoredTheme() ?? getSystemTheme())
+
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
     const onSystemChange = (e: MediaQueryListEvent) => {
-      if (getStoredTheme() !== null) return   // user has made an explicit choice
-      const next: Theme = e.matches ? 'dark' : 'light'
-      setTheme(next)
-      applyTheme(next)
+      if (getStoredTheme() === null) syncTheme(e.matches ? 'dark' : 'light')
+    }
+    const onStorageChange = (e: StorageEvent) => {
+      if (e.key !== STORAGE_KEY && e.key !== null) return
+      syncTheme(getStoredTheme() ?? getSystemTheme())
+    }
+    const onThemeChange = () => {
+      const current = document.documentElement.getAttribute('data-theme')
+      if (current === 'light' || current === 'dark') setTheme(current)
     }
 
+    window.addEventListener('storage', onStorageChange)
+    window.addEventListener(THEME_CHANGE_EVENT, onThemeChange)
     if (typeof mq.addEventListener === 'function') {
       mq.addEventListener('change', onSystemChange)
-      return () => mq.removeEventListener('change', onSystemChange)
+    } else {
+      mq.addListener(onSystemChange)
     }
-    mq.addListener(onSystemChange)
-    return () => mq.removeListener(onSystemChange)
+
+    return () => {
+      window.removeEventListener('storage', onStorageChange)
+      window.removeEventListener(THEME_CHANGE_EVENT, onThemeChange)
+      if (typeof mq.removeEventListener === 'function') {
+        mq.removeEventListener('change', onSystemChange)
+      } else {
+        mq.removeListener(onSystemChange)
+      }
+    }
   }, [])
 
-  /**
-   * toggle — switches theme and triggers a View Transitions circle-reveal.
-   * @param originX  X position of the toggle button (px from left) for the reveal origin
-   * @param originY  Y position of the toggle button (px from top)  for the reveal origin
-   */
-  const toggle = useCallback((originX: number, originY: number) => {
-    const next: Theme = theme === 'light' ? 'dark' : 'light'
-
-    // Plant the reveal origin as CSS custom properties on <html>
-    document.documentElement.style.setProperty('--vt-x', `${originX}px`)
-    document.documentElement.style.setProperty('--vt-y', `${originY}px`)
-
-    if (!('startViewTransition' in document)) {
-      // Fallback: no animation, just switch
-      setTheme(next)
-      applyTheme(next)
-      return
-    }
-
-    // View Transitions API — the CSS ::view-transition-new(root) does the reveal
-    ;(document as any).startViewTransition(() => {
-      setTheme(next)
-      applyTheme(next)
-    })
-  }, [theme])
+  const toggle = useCallback(() => {
+    // Read the immediately applied value so rapid toggles never use stale state.
+    const current = document.documentElement.getAttribute('data-theme')
+      ?? getStoredTheme() ?? getSystemTheme()
+    const next: Theme = current === 'dark' ? 'light' : 'dark'
+    applyTheme(next)
+    setTheme(next)
+    try { localStorage.setItem(STORAGE_KEY, next) } catch {}
+    // Storage events only reach other documents; keep local consumers in sync too.
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT))
+  }, [])
 
   return { theme, toggle }
 }

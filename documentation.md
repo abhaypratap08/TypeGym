@@ -37,7 +37,7 @@ It supports timed tests, fixed word-count tests, quote typing, and code snippet 
 - Final result card with WPM, accuracy, errors, duration, correct characters, and total characters.
 - Animated typing cursor and per-character visual feedback.
 - Incorrect character highlighting and wrong-word underline.
-- Restart support through the restart button or `Tab` key.
+- Restart support through the restart button or `Escape` key; `Tab` retains normal keyboard navigation.
 - Mobile-friendly hidden input layer for touch keyboards.
 - Inlined datasets for instant test generation without network requests.
 - Multiplayer typing races (up to 5 players) with a 4-digit room code, live
@@ -49,7 +49,7 @@ It supports timed tests, fixed word-count tests, quote typing, and code snippet 
 
 - TypeScript
 - React 18
-- Next.js 14 App Router
+- Next.js 15 App Router
 - Framer Motion
 - Tailwind CSS
 - CSS custom properties
@@ -149,7 +149,7 @@ You need the following installed:
 - npm
 - Git
 
-The project currently uses Next.js 14 and React 18.
+The project currently uses Next.js 15 and React 18.
 
 ### Installation
 
@@ -189,6 +189,55 @@ npm run build
 ---
 
 ## How It Works
+
+### Interface and accessibility
+
+The interface applies the supplied Apple-design guidance without adding gestures
+that distract from typing:
+
+- One translucent, sticky navigation surface above solid content cards. No fake
+  window controls, repeated dock navigation, or stacked glass panels.
+- Platform system typography, size-specific tracking, readable pending words in
+  both themes, and layouts that use relative sizing. Browser zoom is enabled.
+- Mode selections and progress use the shared critically damped spring in
+  `lib/motion.ts`. Controls respond on press; actions commit on release. Results
+  have no stagger delays and remain immediately actionable.
+- Metrics occupy space from the idle state onward, so starting a test does not
+  insert a new row and move the text. Per-character feedback stays immediate.
+- `Escape` restarts; `Space` or `Enter` commits a word. `Tab` navigates normally.
+  Leaving the typing field never pulls focus back. Desktop initially focuses the
+  field; touch users explicitly tap it. Results receive heading focus, and
+  restarting returns focus to the input.
+- Reduced-motion preferences remove spatial feedback; reduced-transparency and
+  increased-contrast preferences independently replace glass with solid surfaces.
+  Focus indicators and pressed/selected states remain visible in forced colors.
+- Theme follows the OS until the person explicitly chooses light or dark. That
+  choice is stored under the existing `tg-theme` key and synchronized across tabs.
+
+### Verification
+
+```bash
+npm test
+npm run typecheck
+npm run lint
+npm run build
+```
+
+`npm test` uses Node's test runner, the existing TypeScript compiler, and jsdom.
+It mounts the real React components to check typing/word commits, mode changes,
+focus retention, native Tab handling, Escape/restart, quote completion/results,
+theme synchronization, touch focus, reduced motion, and room-code validation.
+Separate tests measure semantic text-color contrast, including idle text opacity,
+on both light and dark content surfaces. These are component/token checks, not a
+claim of complete WCAG conformance or browser visual coverage.
+
+Remaining manual checks: at 320 px, tablet, and desktop widths, try all four modes,
+200% zoom, light/dark, each accessibility preference, and a two-player race with
+configured Pusher credentials. Check native mobile keyboard behavior and that
+rapid mode changes remain interruptible. The built-in browser timed out during
+the design pass, so visual inspection and a real networked race remain unverified.
+
+### Typing lifecycle
 
 TypeGym is centered around the `useTypingEngine` hook. That hook owns the test configuration, current word, typed input, completed word results, timer state, live metrics, and final results.
 
@@ -285,15 +334,14 @@ The items below are known trade-offs or edge cases that are documented here rath
 ### Mobile
 
 - **iOS Safari keyboard visibility.** `interactiveWidget: resizes-content` (set in the Next.js `viewport` export) is the standard mechanism to prevent layout shifts when the virtual keyboard opens. It is supported in Chrome for Android and Safari 16+. On older iOS Safari (< 16), the page may still scroll slightly when the keyboard opens.
-- **`maximumScale: 1` disables user zoom.** This is set to prevent iOS Safari from zooming to the focused input, which would shift the typing area. It also prevents the user from intentionally zooming the page. An alternative approach (ensuring all inputs have `font-size: 16px`) is already in place; `maximumScale` is a belt-and-suspenders guard.
-- **Keyboard flicker on older Android WebView.** The `onBlur` → `requestAnimationFrame` → `focus()` chain keeps the software keyboard open across word commits on most devices. On some Android OEM browsers (Samsung Internet < 15, older WebViews) there may still be a brief keyboard animation between words.
-- **Landscape mode on 360 px screens.** In landscape on a 360 px-wide device the word display is shorter (due to `clamp(154px, 34dvh, 190px)`) and shows fewer lines. This is a layout trade-off; the test is still functional but the text area is compact.
+- **Native mobile keyboard behavior requires device testing.** Inputs use at least 1rem text and viewport zoom is unrestricted. Focus is no longer forcibly restored after blur; tap the word area to resume after using another control.
+- **Short landscape screens.** The word display has a bounded height and shows fewer lines on compact screens; the page remains scrollable rather than locking the viewport.
 
 ### General
 
 - **No account system or persistent history.** Solo test results are session-only and disappear on refresh.
 - **Datasets are inlined and relatively small.** The word list, quote collection, and code snippets are bundled with the app. Adding user-defined word lists or server-fetched content would require a backend.
-- **No automated test coverage.** The typing engine and multiplayer hook have no unit or integration tests. Changes should be manually verified with a full 60 s test, a mobile session, and a two-tab multiplayer race.
+- **Focused, not exhaustive, automated coverage.** Component tests exercise the typing flow and interface behavior; live networking, real browser layout, native mobile keyboards, and a full timer/browser-throttling matrix still require manual verification.
 - **Code mode snippets are short.** Code mode uses hand-written short snippets rather than real parsed source files. The snippets are typed as space-delimited words, which means some multi-character tokens (e.g. `!=`, `=>`) are split at spaces and may not reflect real coding ergonomics.
 
 ---
@@ -306,7 +354,7 @@ The items below are known trade-offs or edge cases that are documented here rath
 - Expand code mode with more languages and longer snippets.
 - Add theme customization.
 - Add sound and haptic feedback options.
-- Add automated tests for the typing engine.
+- Expand automated tests for timer edge cases and multiplayer synchronization.
 - Persist multiplayer results (leaderboards, match history).
 - Support more than 5 players per multiplayer room.
 - Add accessibility polish for screen readers and keyboard-only navigation.

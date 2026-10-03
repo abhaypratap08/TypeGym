@@ -11,9 +11,8 @@ interface LiveMetricsProps {
 }
 
 /**
- * LiveMetrics — compact pill panel displayed above the typing area while active.
- * Uses restrained color: teal for WPM, coral only when accuracy is poor or time
- * is running out. Muted ink-tertiary labels keep the UI quiet.
+ * Values update directly, without motion or live announcements on each key.
+ * Fixed numeric columns keep the text area steady as the numbers change.
  */
 const LiveMetrics = memo(function LiveMetrics({
   wpm, accuracy, timeLeft, mode,
@@ -26,33 +25,35 @@ const LiveMetrics = memo(function LiveMetrics({
   const timeColor = timeLeft <= 10 ? 'var(--coral)' : 'var(--ink)'
 
   return (
-    <div
-      className="metrics-row"
-      aria-label={`Live stats: ${wpm} wpm, ${accuracy}% accuracy${mode === 'time' ? `, ${timeLeft}s left` : ''}`}
-    >
+    <dl className="metrics-row" aria-label="Live typing statistics">
       <div className="metric-card">
-        <div className="metric-label">wpm</div>
-        <div className="metric-value" style={{ color: 'var(--teal)' }}>
-          {wpm}
-        </div>
+        <dt className="metric-label">Speed</dt>
+        <dd className="metric-value" style={{ color: 'var(--teal)' }}>
+          <span className="metric-number">{wpm}</span>
+          <span className="metric-unit" aria-hidden="true">wpm</span>
+          <span className="sr-only"> words per minute</span>
+        </dd>
       </div>
 
       <div className="metric-card">
-        <div className="metric-label">acc</div>
-        <div className="metric-value" style={{ color: accColor }}>
-          {accuracy}<span style={{ fontSize: 12, fontWeight: 500 }}>%</span>
-        </div>
+        <dt className="metric-label">Accuracy</dt>
+        <dd className="metric-value" style={{ color: accColor }}>
+          <span className="metric-number">{accuracy}</span>
+          <span className="metric-unit">%</span>
+        </dd>
       </div>
 
       {mode === 'time' && (
         <div className="metric-card">
-          <div className="metric-label">time</div>
-          <div className="metric-value" style={{ color: timeColor }}>
-            {timeLeft}
-          </div>
+          <dt className="metric-label">Time left</dt>
+          <dd className="metric-value" style={{ color: timeColor }}>
+            <span className="metric-number">{timeLeft}</span>
+            <span className="metric-unit" aria-hidden="true">s</span>
+            <span className="sr-only"> seconds</span>
+          </dd>
         </div>
       )}
-    </div>
+    </dl>
   )
 })
 

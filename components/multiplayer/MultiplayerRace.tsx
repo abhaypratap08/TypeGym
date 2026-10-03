@@ -7,6 +7,7 @@ import { useRoom } from '@/hooks/useRoom'
 import type { ConnectionStatus } from '@/hooks/useRoom'
 import { WORDS_LIST } from '@/lib/datasets'
 import { seededWordList } from '@/lib/seededRandom'
+import { FADE_TRANSITION } from '@/lib/motion'
 import WordDisplay from '@/components/typing/WordDisplay'
 import PlayerLane from './PlayerLane'
 import WinnerScreen from './WinnerScreen'
@@ -24,28 +25,23 @@ function getPlayerId() {
 function ConnectionBanner({ status }: { status: ConnectionStatus }) {
   if (status === 'connected') return null
 
-  const config = {
-    connecting:   { bg: 'var(--teal-dim)',   border: 'rgba(74,158,135,0.28)', color: 'var(--teal)',          text: 'Connecting to room…' },
-    error:        { bg: 'var(--coral-dim)',   border: 'rgba(217,108,90,0.28)', color: 'var(--coral)',         text: 'Connection error — check your network and refresh.' },
-    disconnected: { bg: 'rgba(201,134,78,0.10)', border: 'rgba(201,134,78,0.28)', color: 'var(--accent-orange)', text: 'Connection lost — attempting to reconnect…' },
+  const text = {
+    connecting: 'Connecting to room…',
+    error: 'Connection error — check your network and refresh.',
+    disconnected: 'Connection lost — attempting to reconnect…',
   }[status]
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -4 }}
-      animate={{ opacity: 1, y: 0 }}
+      className={`mp-connection-banner is-${status}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      style={{
-        width: '100%', padding: '9px 14px', borderRadius: 'var(--r-control)',
-        background: config.bg, border: `1px solid ${config.border}`,
-        color: config.color, fontSize: 13,
-        fontFamily: 'var(--font-geist), system-ui, sans-serif',
-        textAlign: 'center', lineHeight: 1.5,
-      }}
+      transition={FADE_TRANSITION}
       role="status"
       aria-live="polite"
     >
-      {config.text}
+      {text}
     </motion.div>
   )
 }
@@ -67,6 +63,7 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
   const { enterCustomWordRace, exitCustomWordRace } = engine
   const inputRef = useRef<HTMLInputElement | null>(null)
   const finishEmittedRef = useRef(false)
+  const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [raceStarted, setRaceStarted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [timeLimit, setTimeLimit] = useState(60)
@@ -93,7 +90,10 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
     if (phase === 'countdown') finishEmittedRef.current = false
     if (phase === 'racing') {
       setRaceStarted(true)
-      inputRef.current?.focus()
+      const focused = document.activeElement
+      if (!focused || focused === document.body || focused.id === 'main-content') {
+        inputRef.current?.focus({ preventScroll: true })
+      }
     }
     if (phase === 'finished' && engine.phase === 'active') {
       engine.finishCurrentTest()
@@ -124,10 +124,8 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
     emitFinish(engine.finalResults?.wpm ?? engine.liveWPM)
   }, [engine.phase, engine.finalResults, engine.liveWPM, emitFinish, raceStarted])
 
-  useEffect(() => {
-    const onTab = (e: KeyboardEvent) => { if (e.key === 'Tab') e.preventDefault() }
-    window.addEventListener('keydown', onTab)
-    return () => window.removeEventListener('keydown', onTab)
+  useEffect(() => () => {
+    if (copyResetRef.current) clearTimeout(copyResetRef.current)
   }, [])
 
   const handleLeave = useCallback(() => {
@@ -136,14 +134,14 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
   }, [exitCustomWordRace, onLeave])
 
   const copyRoomCode = useCallback(async () => {
+    if (copyResetRef.current) clearTimeout(copyResetRef.current)
     try {
       await navigator.clipboard.writeText(roomCode)
       setCopyHint('copied')
-      window.setTimeout(() => setCopyHint('idle'), 1600)
     } catch {
       setCopyHint('err')
-      window.setTimeout(() => setCopyHint('idle'), 2000)
     }
+    copyResetRef.current = setTimeout(() => setCopyHint('idle'), 2000)
   }, [roomCode])
 
   const showWinner = state.phase === 'finished' && state.winnerId
@@ -154,27 +152,40 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
         <MultiplayerHeader
           right={(
             <>
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-                <span style={{
-                  fontFamily: 'var(--font-geist-mono), monospace',
-                  fontWeight: 600, fontSize: 15,
-                  color: 'var(--ink)', letterSpacing: '0.10em',
-                }}>
-                  {roomCode}
+              <div className="mp-room-actions" role="group" aria-label="Room details">
+                <span className="mp-room-code">
+                  <span className="sr-only">Room code </span>{roomCode}
                 </span>
-                <button type="button" className="mp-secondary-btn" onClick={copyRoomCode}>
-                  {copyHint === 'copied' ? 'Copied' : copyHint === 'err' ? 'Failed' : 'Copy'}
+                <button
+                  type="button"
+                  className="mp-secondary-btn"
+                  onClick={copyRoomCode}
+                  aria-label={copyHint === 'copied' ? 'Copied room code' : copyHint === 'err' ? 'Try again to copy room code' : 'Copy room code'}
+                >
+                  {copyHint === 'copied' ? 'Copied' : copyHint === 'err' ? 'Try again' : 'Copy'}
                 </button>
-                <span className="mp-room-meta">{state.players.length}/5</span>
+                <span className="sr-only" role="status">
+                  {copyHint === 'copied' ? 'Room code copied.' : copyHint === 'err' ? 'Could not copy. Select the room code to copy it manually.' : ''}
+                </span>
+                <span className="mp-room-meta"><span className="sr-only">Players </span>{state.players.length}/5</span>
               </div>
-              <button type="button" className="mp-nav-link" onClick={handleLeave}>leave</button>
+              <button type="button" className="mp-nav-link" onClick={handleLeave}>Leave</button>
             </>
           )}
         />
 
-        <main className="app-main">
+        <main id="main-content" className="app-main" tabIndex={-1} aria-labelledby="mp-race-heading">
+          <h1 id="mp-race-heading" className="sr-only">Multiplayer race</h1>
+          <AnimatePresence initial={false} mode="popLayout">
           {showWinner ? (
-            <motion.div key="winner" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <motion.div
+              key="winner"
+              className="mp-winner-panel"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={FADE_TRANSITION}
+            >
               <WinnerScreen
                 players={state.players}
                 winnerId={state.winnerId!}
@@ -185,9 +196,11 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
           ) : (
             <motion.div
               key="race"
+              className="mp-race-content"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 14 }}
+              exit={{ opacity: 0 }}
+              transition={FADE_TRANSITION}
             >
               {/* Connection banner */}
               <AnimatePresence>
@@ -196,45 +209,36 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
                 )}
               </AnimatePresence>
 
-              {/* Countdown overlay */}
-              <AnimatePresence>
-                {phase === 'countdown' && (
-                  <motion.div
-                    key="cd"
-                    className="mp-countdown-overlay"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <motion.span
-                      className="mp-countdown-num"
-                      initial={{ scale: 0.5, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 1.2, opacity: 0 }}
-                    >
-                      {state.countdown}
-                    </motion.span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
               {/* Player lanes */}
-              <div className="mp-lanes-panel">
+              <section className="mp-lanes-panel" aria-label="Race progress">
+                <AnimatePresence initial={false}>
+                  {phase === 'countdown' && (
+                    <motion.div
+                      key="countdown"
+                      className="mp-countdown-notice"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={FADE_TRANSITION}
+                      role="status"
+                    >
+                      <span>Race starts in</span>
+                      <span className="mp-countdown-num">{state.countdown}</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 {phase === 'racing' && state.timeLimit > 0 && (
-                  <div style={{
-                    display: 'flex', justifyContent: 'flex-end',
-                    marginBottom: 10,
-                    fontFamily: 'var(--font-geist-mono), monospace',
-                    fontSize: 17, fontWeight: 600, letterSpacing: '-0.02em',
-                    color: state.timeLeft <= 10 ? 'var(--coral)' : 'var(--ink-secondary)',
-                    transition: 'color 0.3s ease',
-                  }}>
+                  <p
+                    className={`mp-race-timer${state.timeLeft <= 10 ? ' is-urgent' : ''}`}
+                    role="timer"
+                    aria-label={`${state.timeLeft} seconds remaining`}
+                  >
                     {state.timeLeft}s
-                  </div>
+                  </p>
                 )}
 
                 {state.players.length === 0 ? (
-                  <p className="mp-tap-hint" style={{ padding: '10px 0' }}>
+                  <p className="mp-tap-hint mp-empty-lanes">
                     {connectionStatus === 'connecting'
                       ? 'Connecting…'
                       : connectionStatus === 'error'
@@ -253,28 +257,25 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
                     />
                   ))
                 )}
-              </div>
+              </section>
 
               {/* Typing area */}
-              {(phase === 'racing' || phase === 'waiting') && (
+              {(phase === 'racing' || phase === 'waiting' || phase === 'countdown') && (
                 <div
-                  className={`word-shell ${phase === 'racing' && engine.phase === 'active' ? 'is-active' : 'is-idle'}`}
-                  onClick={() => phase === 'racing' && inputRef.current?.focus()}
-                  onTouchStart={() => phase === 'racing' && inputRef.current?.focus()}
-                  style={{
-                    opacity: phase === 'racing' ? 1 : 0.55,
-                    pointerEvents: phase === 'racing' ? 'auto' : 'none',
-                    filter: phase === 'waiting' ? 'blur(5px)' : 'none',
-                    transition: 'filter 0.3s ease, opacity 0.3s ease',
-                    userSelect: 'none',
-                    touchAction: 'manipulation',
-                  }}
+                  className={`word-shell mp-word-shell ${phase === 'racing' && engine.phase === 'active' ? 'is-active' : 'is-idle'}${phase !== 'racing' ? ' is-waiting' : ''}`}
+                  onClick={() => phase === 'racing' && engine.phase !== 'finished' && inputRef.current?.focus({ preventScroll: true })}
                 >
                   <input
                     ref={inputRef}
                     className="typing-input-proxy"
                     value={engine.currentInput}
                     onChange={e => phase === 'racing' && engine.handleTextInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key !== 'Enter' || e.nativeEvent.isComposing || e.ctrlKey || e.metaKey || e.altKey) return
+                      e.preventDefault()
+                      engine.handleTextInput(`${engine.currentInput} `)
+                    }}
+                    disabled={phase !== 'racing' || engine.phase === 'finished'}
                     autoCapitalize="none"
                     autoCorrect="off"
                     autoComplete="off"
@@ -284,7 +285,8 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
                     data-gramm="false"
                     data-gramm_editor="false"
                     data-enable-grammarly="false"
-                    aria-label="Typing input"
+                    aria-label="Type the displayed words"
+                    aria-describedby="mp-typing-hint"
                   />
                   <WordDisplay
                     words={engine.words}
@@ -295,19 +297,27 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
                   />
                 </div>
               )}
+              {(phase === 'waiting' || phase === 'countdown' || (phase === 'racing' && engine.phase !== 'finished')) && (
+                <p id="mp-typing-hint" className="mp-tap-hint">
+                  {phase === 'racing'
+                    ? 'Select the words to type. Space moves to the next word; Tab moves between controls.'
+                    : 'Your words are ready. Typing opens when the race starts.'}
+                </p>
+              )}
 
               {/* Host controls / waiting notice */}
               {phase === 'waiting' && (
-                <div style={{ textAlign: 'center' }}>
+                <div className="mp-waiting-controls">
                   {isHost ? (
                     <>
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+                      <div className="mp-time-options" role="group" aria-label="Race duration">
                         {[30, 60, 90, 120].map(t => (
                           <button
                             key={t}
                             type="button"
                             className={`mode-btn${timeLimit === t ? ' active' : ''}`}
                             onClick={() => setTimeLimit(t)}
+                            aria-pressed={timeLimit === t}
                           >
                             {t}s
                           </button>
@@ -315,14 +325,13 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
                       </div>
                       <button
                         type="button"
-                        className="restart-btn"
+                        className="restart-btn mp-start-btn"
                         onClick={() => startRace(timeLimit)}
                         disabled={state.players.length < 2 || connectionStatus !== 'connected'}
-                        style={{ padding: '11px 28px', fontSize: 14 }}
                       >
                         Start Race
                       </button>
-                      <p className="mp-tap-hint" style={{ marginTop: 10 }}>
+                      <p className="mp-tap-hint mp-waiting-hint">
                         {state.players.length < 2
                           ? 'Share the room code so a second player can join.'
                           : 'Start when everyone is ready.'}
@@ -339,13 +348,17 @@ export default function MultiplayerRace({ roomCode, playerName, playerColor, isH
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={FADE_TRANSITION}
                   className="mp-tap-hint"
+                  role="status"
                 >
                   Waiting for others to finish…
                 </motion.p>
               )}
             </motion.div>
           )}
+          </AnimatePresence>
         </main>
 
         <MultiplayerFooter />

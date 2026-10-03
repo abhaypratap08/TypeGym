@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
+import { UI_SPRING, FADE_TRANSITION } from '@/lib/motion'
 import MultiplayerRace from './MultiplayerRace'
 import { MultiplayerFooter, MultiplayerHeader } from './MultiplayerSiteChrome'
 
@@ -50,6 +50,7 @@ function generateCode() {
 const PUSHER_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY ?? ''
 
 export default function MultiplayerLobby() {
+  const reducedMotion = useReducedMotion()
   const [name, setName]   = useState('GuestAlpha')
   const [color, setColor] = useState<string>(PLAYER_COLORS[0].id)
   const [joinCode, setJoinCode]   = useState('')
@@ -106,36 +107,35 @@ export default function MultiplayerLobby() {
   return (
     <div className="app-shell bg-grid">
       <div className="app-window">
-        <MultiplayerHeader
-          right={
-            <Link href="/" className="mp-nav-link">practice</Link>
-          }
-        />
+        <MultiplayerHeader />
 
-        <main className="app-main">
-          <motion.div
+        <main id="main-content" className="app-main" tabIndex={-1} aria-labelledby="mp-lobby-title">
+          <motion.section
             className="mp-card"
-            initial={{ opacity: 0, y: 14 }}
+            initial={{ opacity: 0, y: reducedMotion ? 0 : 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.28, ease: 'easeOut' }}
+            exit={{ opacity: 0, y: reducedMotion ? 0 : 8 }}
+            transition={{ ...UI_SPRING, opacity: FADE_TRANSITION }}
           >
             {!PUSHER_KEY && (
               <div className="mp-banner" role="status">
-                <strong style={{ display: 'block', marginBottom: 5 }}>Real-time sync is off</strong>
+                <strong className="mp-banner-title">Real-time sync is off</strong>
                 Add the four Pusher variables from{' '}
-                <code style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11 }}>.env.example</code>
+                <code>.env.example</code>
                 {' '}to{' '}
-                <code style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11 }}>.env.local</code>
+                <code>.env.local</code>
                 , then restart{' '}
-                <code style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11 }}>npm run dev</code>.
+                <code>npm run dev</code>.
               </div>
             )}
 
-            <h2 className="mp-title">Join the race</h2>
+            <h1 id="mp-lobby-title" className="mp-title">Join the race</h1>
 
-            <label style={{ display: 'block', marginBottom: 10 }}>
-              <div className="mp-label">Display name</div>
+            <div className="mp-field">
+              <label htmlFor="mp-display-name" className="mp-label">Display name</label>
               <input
+                id="mp-display-name"
+                name="displayName"
                 className="mp-input"
                 value={name}
                 onChange={e => setName(e.target.value)}
@@ -145,65 +145,56 @@ export default function MultiplayerLobby() {
               />
               <button
                 type="button"
-                className="mp-secondary-btn"
+                className="mp-secondary-btn mp-random-name"
                 onClick={randomizeGuestName}
-                style={{ marginTop: 10 }}
               >
                 Random name
               </button>
-            </label>
+            </div>
 
-            <p className="mp-tap-hint" style={{ marginBottom: 20, textAlign: 'left', marginTop: 16 }}>
+            <p className="mp-tap-hint mp-lane-note">
               Lane color is assigned randomly — everyone stays visible without choosing a swatch.
             </p>
 
             <button
               type="button"
-              className="restart-btn"
+              className="restart-btn mp-create-btn"
               onClick={handleCreate}
               disabled={!canProceed}
-              style={{
-                width: '100%', justifyContent: 'center',
-                padding: '11px 20px', marginBottom: 12,
-                opacity: canProceed ? 1 : 0.4,
-              }}
             >
               Create Room
             </button>
 
-            <div className="mp-muted-rule">— or join with a code —</div>
+            <p className="mp-muted-rule">Or join with a code</p>
 
             <form
-              style={{ display: 'flex', gap: 8 }}
+              className="mp-join-form"
               onSubmit={e => { e.preventDefault(); handleJoin() }}
             >
-              <input
-                className={`mp-input${error ? ' mp-input-error' : ''}`}
-                value={joinCode}
-                onChange={e => { setJoinCode(e.target.value.replace(/\D/g, '').slice(0, 4)); setError('') }}
-                placeholder="4-digit code"
-                maxLength={4}
-                style={{ flex: 1, letterSpacing: '0.18em', textAlign: 'center' }}
-              />
-              <button
-                type="submit"
-                className="restart-btn"
-                disabled={!canProceed}
-                style={{ padding: '9px 18px', opacity: canProceed ? 1 : 0.4 }}
-              >
-                Join
-              </button>
-            </form>
-
-            {error && (
-              <div style={{
-                color: 'var(--coral)', fontSize: 12.5,
-                marginTop: 7, fontFamily: 'var(--font-geist), system-ui, sans-serif',
-              }}>
-                {error}
+              <label htmlFor="mp-room-code" className="mp-label">Room code</label>
+              <div className="mp-join-controls">
+                <input
+                  id="mp-room-code"
+                  name="roomCode"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  className={`mp-input mp-code-input${error ? ' mp-input-error' : ''}`}
+                  value={joinCode}
+                  onChange={e => { setJoinCode(e.target.value.replace(/\D/g, '').slice(0, 4)); setError('') }}
+                  placeholder="4-digit code"
+                  maxLength={4}
+                  aria-invalid={Boolean(error)}
+                  aria-describedby={`mp-room-code-hint${error ? ' mp-room-code-error' : ''}`}
+                />
+                <button type="submit" className="restart-btn" disabled={!canProceed}>
+                  Join
+                </button>
               </div>
-            )}
-          </motion.div>
+              <p id="mp-room-code-hint" className="mp-form-hint">Enter the 4-digit code shared by your host.</p>
+              {error && <p id="mp-room-code-error" className="mp-error" role="alert">{error}</p>}
+            </form>
+          </motion.section>
         </main>
 
         <MultiplayerFooter />
