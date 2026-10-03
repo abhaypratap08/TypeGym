@@ -41,7 +41,8 @@ It supports timed tests, fixed word-count tests, quote typing, and code snippet 
 - Mobile-friendly hidden input layer for touch keyboards.
 - Inlined datasets for instant test generation without network requests.
 - Multiplayer typing races (up to 5 players) with a 4-digit room code, live
-  progress lanes, and a countdown-to-finish flow, powered by Pusher Channels.
+  progress lanes, and a countdown-to-finish flow, powered by Pusher Presence
+  Channels and authoritative room snapshots.
 
 ---
 
@@ -75,7 +76,9 @@ TypeGym/
 │   ├── multiplayer/
 │   │   └── page.tsx              # Multiplayer lobby entry point
 │   └── api/
-│       └── pusher/route.ts       # Validates and relays race events to Pusher
+│       ├── pusher/route.ts       # Applies authenticated race commands
+│       ├── pusher/auth/route.ts  # Authenticates Presence subscriptions
+│       └── rooms/                 # Admission, snapshots, and explicit leave
 ├── components/
 │   └── multiplayer/
 │       ├── MultiplayerLobby.tsx  # Create/join room UI
@@ -85,7 +88,7 @@ TypeGym/
 │       └── MultiplayerSiteChrome.tsx # Shared header/footer for MP pages
 ├── hooks/
 │   ├── useTypingEngine.ts       # Core typing engine, timer, metrics, and lifecycle state
-│   └── useRoom.ts               # Multiplayer room state synced over Pusher
+│   └── useRoom.ts               # Presence + authoritative snapshot client
 ├── lib/
 │   ├── datasets.ts              # Word list, quote list, and code snippets
 │   └── seededRandom.ts          # Deterministic word list shared by all racers
@@ -103,21 +106,38 @@ TypeGym/
 
 ## Multiplayer Mode
 
-Multiplayer races run through [Pusher Channels](https://pusher.com/channels)
-for realtime sync — there is no persistent backend or database.
+Multiplayer races use [Pusher Presence Channels](https://pusher.com/channels)
+for live membership and an authenticated room authority for race state. Presence
+answers “who is here?”; a versioned room snapshot answers “what is happening?”
+on initial subscription and every reconnect. Browser refresh is treated as a
+connection lifecycle event, not a leave.
 
 - A host creates a room and gets a random 4-digit code; up to 4 more players
   can join with that code (5 players max per room).
 - All players in a room type the same word list, deterministically generated
   from the room code via a seeded PRNG (`lib/seededRandom.ts`), so no network
   round-trip is needed to sync the text itself.
-- Player joins, progress ticks, race start, and finish events are relayed
-  through `POST /api/pusher`, which validates the channel name, event name,
-  and payload shape before calling `pusher.trigger(...)` server-side (the
-  Pusher app secret never reaches the browser).
-- If Pusher environment variables are not configured, the multiplayer lobby
-  shows a setup banner and the room still renders locally, but players won't
-  see each other.
+- The room channel is `presence-room-{roomCode}`. Pusher's
+  `subscription_succeeded`, `member_added`, and `member_removed` events hydrate
+  membership immediately; there is no re-announce or 300 ms handshake.
+- Race commands are authenticated by the room session and applied with a
+  versioned compare-and-set update before a complete `room-state` snapshot is
+  published through `POST /api/pusher`. Progress and finish commands are
+  idempotent by player sequence number.
+- `POST /api/pusher/auth` signs Presence subscriptions with server-only Pusher
+  credentials. The Pusher app secret never reaches the browser.
+- Room sessions are stored in `sessionStorage` under `tg-active-room`. The
+  record contains the room, stable player identity, host identity, and a
+  per-session token. Only explicit **Leave** calls the room DELETE endpoint and
+  clears this record.
+- `tg-race-input` separately checkpoints completed words and partial input in
+  the current tab, so a race refresh resumes typing at the same position.
+- An admitted seat survives a socket disconnect. Leave releases it; host Leave
+  closes the room without electing a replacement host. New admissions are closed
+  after a race starts, but existing players can reconnect through the results.
+- Countdown and deadline use the server's absolute `raceStartedAt`. Local clock
+  ticks update the display only. A single deadline command asks the authority to
+  finalize the race; there is no periodic snapshot-fetch loop.
 
 ### Environment variables
 
@@ -130,8 +150,52 @@ Copy `.env.example` to `.env.local` and fill in values from your own
 | `NEXT_PUBLIC_PUSHER_CLUSTER` | client | e.g. `mt1` |
 | `PUSHER_APP_ID` | server only | Never prefix with `NEXT_PUBLIC_` |
 | `PUSHER_SECRET` | server only | Never prefix with `NEXT_PUBLIC_` — keep this out of git |
-| `TYPEGYM_PUSHER_TRIGGER_SECRET` (optional) | server | If set, `POST /api/pusher` requires a matching `x-typegym-pusher-trigger` header |
-| `NEXT_PUBLIC_TYPEGYM_PUSHER_TRIGGER_SECRET` (optional) | client | Must equal the server value above |
+| `UPSTASH_REDIS_REST_URL` | server | Required for production shared room snapshots |
+| `UPSTASH_REDIS_REST_TOKEN` | server | Required for production shared room snapshots |
+| `NEXT_PUBLIC_ROOM_DEBUG` (optional) | client | Set to `1` in development for lifecycle diagnostics |
+
+For production, connect an Upstash Redis database and set **both** REST variables
+on every deployment using the same Pusher app. `KV_REST_API_URL` and
+`KV_REST_API_TOKEN` are accepted aliases. A compare-and-set Lua operation enforces
+room admission and race updates atomically across instances. Rooms expire 24 hours
+after their last state write. Local `npm run dev` can use a process-local store;
+that fallback intentionally is unavailable in production and resets if the dev
+server restarts. No new npm dependency is required.
+
+The old shared `TYPEGYM_PUSHER_TRIGGER_SECRET` / public counterpart are no longer
+used. Each room admission receives its own random session token, validated by all
+snapshot, presence-auth, race-command, and leave endpoints. Only its hash is kept
+in storage; neither tokens nor storage records are included in Pusher events.
+
+### Verify the network lifecycle
+
+Set `NEXT_PUBLIC_ROOM_DEBUG=1` in `.env.local`, restart `npm run dev`, and open two
+independent tabs (new navigation, not a duplicated tab with copied sessionStorage).
+The diagnostics include event names, counts, revisions, and phases, never auth
+headers, player names, or tokens. They are disabled in production.
+
+1. Create a room in the first tab; join with its code in the second. Expect
+   `subscription_requested` → `subscription_succeeded` → `room_snapshot_received`
+   for the joiner, and `member_added` for the host. Opponent lanes must already
+   appear before the snapshot HTTP response completes. There is no `player-join`.
+2. Join a third tab: its subscription contains both existing opponents.
+3. Refresh the host, then the joiner. Expect `session_restored` and the same
+   subscribe/snapshot sequence. Confirm the same code/ID, host controls on the
+   host only, no `POST /api/rooms`, and no DELETE during reload.
+4. Start a race, type in both tabs, take one offline briefly in DevTools, then
+   reconnect. Expect `reconnect` → subscription → `room_snapshot_received`.
+   Opponent progress and finishes, the original deadline, and local input must
+   recover without waiting for another progress update.
+5. Click Leave. This alone sends `DELETE /api/rooms/{code}`, logs
+   `session_cleared`, and removes `tg-active-room` and `tg-race-input`. Peers see
+   `member_removed`; host Leave also publishes the closed-room snapshot.
+
+Automated coverage in `tests/multiplayer-*.test.cjs` exercises these client
+lifecycles with a controlled Pusher transport, actual route handlers/signatures,
+concurrent admissions, host authorization, deadline snapshots, and duplicate or
+out-of-order updates. Live Pusher/WebSocket and hosted Redis verification still
+requires configured service credentials; the controlled transport is not a live
+network test.
 
 **Never commit real values for these** — `.env.example` should only ever
 contain placeholders. If you're deploying (e.g. on Vercel), set the real
@@ -304,7 +368,7 @@ The timer uses `Date.now()` subtracted from a recorded `deadlineRef` value rathe
 
 ### Multiplayer progress throttle
 
-Progress events (typed word count + current WPM) are emitted at most once every 2 seconds. Pusher's free tier limits message rates, and one network call per keystroke would both exceed those limits and produce visible jank on slow connections. The per-player inactivity checker runs every 3 seconds and marks peers as stale after 8 seconds of silence during a race.
+Progress events (typed word count + current WPM) are emitted at most once every 2 seconds. Pusher's free tier limits message rates, and one network call per keystroke would both exceed those limits and produce visible jank on slow connections. Presence handles online/offline status independently of typing activity.
 
 ---
 
@@ -323,13 +387,17 @@ The items below are known trade-offs or edge cases that are documented here rath
 
 ### Multiplayer
 
-- **No persistent backend.** Rooms are ephemeral Pusher channels. If all players close the tab, the room is gone. There is no way to rejoin a finished race or view historic results.
-- **Peer "disconnected" detection is heuristic.** The peer-inactivity checker marks a player as stale if no progress or finish event arrives within 8 seconds. A player on a very slow connection who is still typing may be incorrectly flagged. When their next event arrives, the stale flag is cleared automatically.
-- **Progress emit throttle (2 s).** Opponent progress bars update at most once every 2 seconds per player. This reduces Pusher API usage on the free tier but means opponent bars move in small jumps rather than smoothly. Increasing the cadence (or switching to Pusher Presence Channels for a more efficient push model) would improve smoothness.
-- **Race finish is eventually consistent.** The `player-finish` event travels: client → `/api/pusher` (Next.js route) → Pusher → all subscribers. Under high latency this can take 500 ms–2 s. A player who finishes just before the time limit may briefly see the race still running before their finish event propagates.
-- **No reconnect for the _other_ player.** If the Pusher connection drops and reconnects, the local player re-subscribes and re-announces themselves. However, already-connected peers do not re-broadcast their current state, so the reconnecting player may see missing progress until the next natural progress event. A dedicated `state-sync` event requested on reconnect would fix this.
-- **Maximum 5 players per room.** The cap is enforced client-side. A malicious actor could bypass it by sending crafted events directly to the Pusher API endpoint; the server-side route only validates payload shape, not room capacity.
-- **Requires Pusher credentials.** Without the four Pusher environment variables the multiplayer lobby degrades gracefully (shows a setup banner), but real-time sync does not work.
+- **Ephemeral rooms, durable connection recovery.** Rooms are retained in shared
+  storage for 24 hours so a refresh/reconnect can recover the active race. This
+  is not match history; finished rooms are not a historical leaderboard.
+- **Production storage is required.** The development fallback is an in-process
+  store. Configure Upstash Redis REST (or the supported Vercel KV aliases)
+  before deploying multiple/serverless instances.
+- **Presence reflects socket membership.** A temporary disconnect removes a player from the live presence map, while the race snapshot keeps their last progress and identity visible for reconnect. It is not treated as an intentional leave.
+- **Progress emit throttle (2 s).** Opponent progress statistics are published at most once every 2 seconds per player. This limits API usage; it does not delay membership or initial/reconnect snapshot hydration.
+- **Authoritative finish timing.** The server snapshot owns the race deadline and winner selection. A reconnecting client receives the current phase, timer origin, progress, and finish state without waiting for a future progress event.
+- **Maximum 5 players per room.** Admission and race start are checked server-side with stable player IDs. Presence and snapshot reconciliation are idempotent, so reconnecting a player does not append a duplicate lane.
+- **Requires Pusher and shared storage credentials.** Without Pusher variables or production room storage, room creation returns a setup error rather than pretending that a multiplayer room can synchronize.
 
 ### Mobile
 

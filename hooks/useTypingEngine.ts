@@ -39,6 +39,15 @@ export interface FinalResults {
   duration:     number   // seconds
 }
 
+/** Local input checkpoint; room membership and race results remain server-owned. */
+export interface CustomRaceCheckpoint {
+  wordResults: WordResult[]
+  currentInput: string
+  startedAt: number | null
+  elapsed: number
+  phase: TestPhase
+}
+
 export interface TypingEngineState {
   mode:           TestMode
   codeLanguage:   CodeLanguage
@@ -64,6 +73,8 @@ export interface TypingEngineActions {
   resetTest:      () => void
   /** Multiplayer: fixed word list until exitCustomWordRace. */
   enterCustomWordRace: (words: readonly string[]) => void
+  restoreCustomWordRace: (checkpoint: CustomRaceCheckpoint) => void
+  captureCustomWordRace: () => CustomRaceCheckpoint
   exitCustomWordRace:  () => void
   finishCurrentTest: () => void
   handleKeyDown:  (e: KeyboardEvent) => void
@@ -477,6 +488,36 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
     setWordState(50)
   }, [])
 
+  const restoreCustomWordRace = useCallback((checkpoint: CustomRaceCheckpoint) => {
+    if (!lockedRaceWordsRef.current) return
+    clearTimers()
+    const seconds = checkpoint.phase === 'finished' ? checkpoint.elapsed
+      : checkpoint.startedAt === null ? 0 : Math.max(0, (Date.now() - checkpoint.startedAt) / 1000)
+    startedAtRef.current = checkpoint.startedAt
+    didFinishRef.current = checkpoint.phase === 'finished'
+    setResults(checkpoint.wordResults)
+    setWIdx(checkpoint.wordResults.length)
+    setInput(checkpoint.currentInput)
+    setElapsed(seconds)
+    setPhase(checkpoint.phase)
+    if (checkpoint.phase === 'finished') {
+      const stats = analyzeResults(checkpoint.wordResults)
+      setFinal({
+        wpm: calcWPM(stats.correctChars, seconds), accuracy: calcAccuracy(stats.correctChars, stats.totalChars),
+        errors: checkpoint.wordResults.filter(result => result.word !== result.typed).length,
+        ...stats, duration: Math.max(seconds, 1),
+      })
+    }
+  }, [clearTimers])
+
+  const captureCustomWordRace = useCallback((): CustomRaceCheckpoint => ({
+    wordResults: refs.current.wordResults,
+    currentInput: refs.current.currentInput,
+    startedAt: startedAtRef.current,
+    elapsed: refs.current.elapsed,
+    phase: refs.current.phase,
+  }), [])
+
   return {
     mode, codeLanguage, timeSetting, wordSetting,
     phase, words, currentInput, wordResults, currentWordIdx,
@@ -484,6 +525,7 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
     liveWPM, liveAccuracy,
     finalResults,
     setMode, setCodeLanguage, setTimeSetting, setWordSetting,
-    resetTest, enterCustomWordRace, exitCustomWordRace, finishCurrentTest, handleKeyDown, handleTextInput,
+    resetTest, enterCustomWordRace, restoreCustomWordRace, captureCustomWordRace,
+    exitCustomWordRace, finishCurrentTest, handleKeyDown, handleTextInput,
   }
 }

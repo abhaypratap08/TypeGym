@@ -12,10 +12,11 @@ interface WinnerScreenProps {
   players:     RoomPlayer[]
   winnerId:    string
   selfId:      string
-  onPlayAgain: () => void
+  onLeave:     () => void
+  leaving?:   boolean
 }
 
-export default function WinnerScreen({ players, winnerId, selfId, onPlayAgain }: WinnerScreenProps) {
+export default function WinnerScreen({ players, winnerId, selfId, onLeave, leaving }: WinnerScreenProps) {
   const [celebrating, setCelebrating] = useState(false)
   const reducedMotion = useReducedMotion()
 
@@ -65,8 +66,8 @@ export default function WinnerScreen({ players, winnerId, selfId, onPlayAgain }:
       </ol>
 
       <div className="mp-result-actions">
-        <button type="button" className="restart-btn" onClick={onPlayAgain}>
-          Play Again
+        <button type="button" className="restart-btn" onClick={onLeave} disabled={leaving}>
+          {leaving ? 'Leaving…' : 'Leave room'}
         </button>
         <Link href="/" className="mp-secondary-btn">Practice Solo</Link>
         {isSelfWinner && (

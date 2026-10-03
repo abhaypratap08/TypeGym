@@ -22,7 +22,7 @@ const PlayerLane = memo(function PlayerLane({ player, isSelf, isWinner, compact,
   const progress = Number.isFinite(player.progress) ? Math.max(0, Math.min(player.progress, 1)) : 0
   const pct = Math.round(progress * 100)
   const isStale = isRacing && !isSelf && !player.finished
-    && (player as RoomPlayer & { _stale?: boolean })._stale === true
+    && player.connected === false
 
   return (
     <div
@@ -38,7 +38,7 @@ const PlayerLane = memo(function PlayerLane({ player, isSelf, isWinner, compact,
             {player.name}{isSelf ? ' (you)' : ''}
           </div>
           <div className="mp-lane-speed">
-            {isStale ? 'Reconnecting' : `${player.wpm} WPM`}
+            {player.withdrawn ? 'Left race' : isStale ? 'Reconnecting' : `${player.wpm} WPM`}
             {isWinner ? ' · Winner' : player.finished ? ' · Finished' : ''}
           </div>
         </div>
