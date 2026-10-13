@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import {
-  analyzeResults, calcAccuracy, calcWPM, useTypingEngine,
+  analyzeResults, calcAccuracy, calcWPM, isWrongWord, useTypingEngine,
 } from '@/hooks/useTypingEngine'
 import type { FinalResults, WordResult } from '@/hooks/useTypingEngine'
 import { UI_SPRING } from '@/lib/motion'
@@ -82,13 +82,13 @@ export default function TypingApp() {
   const fallbackResults = useMemo<FinalResults>(() => {
     const results: WordResult[] = [...wordResults]
     const currentWord = words[currentWordIdx]
-    if (currentWord && currentInput !== '') results.push({ word: currentWord, typed: currentInput })
+    if (currentWord && currentInput !== '') results.push({ word: currentWord, typed: currentInput, partial: true })
     const { correctChars, totalChars } = analyzeResults(results)
     const duration = Math.max(mode === 'time' ? timeSetting : elapsed, 1)
     return {
       wpm: calcWPM(correctChars, duration),
       accuracy: calcAccuracy(correctChars, totalChars),
-      errors: results.filter(result => result.typed !== result.word).length,
+      errors: results.filter(isWrongWord).length,
       correctChars, totalChars, duration,
     }
   }, [currentInput, currentWordIdx, elapsed, mode, timeSetting, wordResults, words])

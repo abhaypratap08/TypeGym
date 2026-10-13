@@ -93,7 +93,7 @@ export class RoomAuthority {
         if (room.closed) throw new RoomError('The host ended this room.', 410)
         if (room.phase !== 'waiting') throw new RoomError('This race has already started.', 409)
         if (Object.values(room.members).filter(m => m.active).length >= MAX_PLAYERS) {
-          throw new RoomError('This room is full (5 players maximum).', 409)
+          throw new RoomError(`This room is full (${MAX_PLAYERS} players maximum).`, 409)
         }
         room.members[player.id] = membership
         room.players.push(player)

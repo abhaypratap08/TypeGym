@@ -40,7 +40,7 @@ It supports timed tests, fixed word-count tests, quote typing, and code snippet 
 - Restart support through the restart button or `Escape` key; `Tab` retains normal keyboard navigation.
 - Mobile-friendly hidden input layer for touch keyboards.
 - Inlined datasets for instant test generation without network requests.
-- Multiplayer typing races (up to 5 players) with a 4-digit room code, live
+- Multiplayer typing races (up to 10 players) with a 4-digit room code, live
   progress lanes, and a countdown-to-finish flow, powered by Pusher Presence
   Channels and authoritative room snapshots.
 
@@ -112,8 +112,8 @@ answers “who is here?”; a versioned room snapshot answers “what is happeni
 on initial subscription and every reconnect. Browser refresh is treated as a
 connection lifecycle event, not a leave.
 
-- A host creates a room and gets a random 4-digit code; up to 4 more players
-  can join with that code (5 players max per room).
+- A host creates a room and gets a random 4-digit code; up to 9 more players
+  can join with that code (10 players max per room).
 - All players in a room type the same word list, deterministically generated
   from the room code via a seeded PRNG (`lib/seededRandom.ts`), so no network
   round-trip is needed to sync the text itself.
@@ -396,7 +396,7 @@ The items below are known trade-offs or edge cases that are documented here rath
 - **Presence reflects socket membership.** A temporary disconnect removes a player from the live presence map, while the race snapshot keeps their last progress and identity visible for reconnect. It is not treated as an intentional leave.
 - **Progress emit throttle (2 s).** Opponent progress statistics are published at most once every 2 seconds per player. This limits API usage; it does not delay membership or initial/reconnect snapshot hydration.
 - **Authoritative finish timing.** The server snapshot owns the race deadline and winner selection. A reconnecting client receives the current phase, timer origin, progress, and finish state without waiting for a future progress event.
-- **Maximum 5 players per room.** Admission and race start are checked server-side with stable player IDs. Presence and snapshot reconciliation are idempotent, so reconnecting a player does not append a duplicate lane.
+- **Maximum 10 players per room.** Admission and race start are checked server-side with stable player IDs. Presence and snapshot reconciliation are idempotent, so reconnecting a player does not append a duplicate lane.
 - **Requires Pusher and shared storage credentials.** Without Pusher variables or production room storage, room creation returns a setup error rather than pretending that a multiplayer room can synchronize.
 
 ### Mobile
@@ -424,7 +424,7 @@ The items below are known trade-offs or edge cases that are documented here rath
 - Add sound and haptic feedback options.
 - Expand automated tests for timer edge cases and multiplayer synchronization.
 - Persist multiplayer results (leaderboards, match history).
-- Support more than 5 players per multiplayer room.
+- Support more than 10 players per multiplayer room.
 - Add accessibility polish for screen readers and keyboard-only navigation.
 - Add deployment notes and screenshots.
 

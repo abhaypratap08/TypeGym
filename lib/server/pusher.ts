@@ -21,7 +21,7 @@ export async function presentPlayerIds(code: string) {
 }
 
 export async function publishSnapshot(snapshot: RoomSnapshot) {
-  // Five players fit comfortably under Pusher's 10 KB event limit. Publishing the
+  // Ten players fit comfortably under Pusher's 10 KB event limit. Publishing the
   // committed projection makes duplicate/out-of-order events harmless and avoids
   // race-state reconstruction from a missing sequence of deltas.
   await getPusher().trigger(roomChannel(snapshot.roomCode), RACE_EVENT, snapshot)

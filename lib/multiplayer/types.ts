@@ -48,8 +48,12 @@ export type RaceCommand =
   | { event: 'player-finish'; data: { wpm: number; sequence: number } }
   | { event: 'race-sync'; data: Record<string, never> }
 
-export const MAX_PLAYERS = 5
-export const PLAYER_COLOR_IDS = ['teal', 'lavender', 'coral', 'amber', 'sage']
+export const MAX_PLAYERS = 10
+export const PILL_LAYOUT_THRESHOLD = 5
+export const PLAYER_COLOR_IDS = [
+  'teal', 'lavender', 'coral', 'amber', 'sage',
+  'sky', 'rose', 'gold', 'slate', 'indigo',
+]
 export const ROOM_CODE_PATTERN = /^\d{4}$/
 export const PRESENCE_CHANNEL_PATTERN = /^presence-room-(\d{4})$/
 export const RACE_EVENT = 'room-state'

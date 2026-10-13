@@ -12,9 +12,10 @@ interface PlayerLaneProps {
   isWinner:  boolean
   compact?:  boolean
   isRacing?: boolean
+  pill?:     boolean
 }
 
-const PlayerLane = memo(function PlayerLane({ player, isSelf, isWinner, compact, isRacing }: PlayerLaneProps) {
+const PlayerLane = memo(function PlayerLane({ player, isSelf, isWinner, compact, isRacing, pill }: PlayerLaneProps) {
   const reducedMotion = useReducedMotion()
   const colorHex = PLAYER_COLORS.find(c => c.id === player.color)?.hex
     ?? (isSelf ? 'var(--teal)' : '#8b7cb8')
@@ -23,6 +24,36 @@ const PlayerLane = memo(function PlayerLane({ player, isSelf, isWinner, compact,
   const pct = Math.round(progress * 100)
   const isStale = isRacing && !isSelf && !player.finished
     && player.connected === false
+
+  if (pill) {
+    const speed = player.withdrawn ? 'Left race' : isStale ? 'Reconnecting' : `${player.wpm} WPM`
+    return (
+      <div
+        className={`mp-pill${isSelf ? ' is-self' : ''}${isStale ? ' is-stale' : ''}${isWinner ? ' is-winner' : ''}${player.finished ? ' is-finished' : ''}`}
+        style={{ '--player-color': colorHex } as CSSProperties}
+        role="progressbar"
+        aria-label={`${player.name}${isSelf ? ' (you)' : ''} progress`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={pct}
+        aria-valuetext={`${pct}% complete, ${speed}${player.finished ? ', finished' : ''}`}
+      >
+        <motion.div
+          className="mp-pill-fill"
+          aria-hidden="true"
+          initial={false}
+          animate={{ scaleX: progress }}
+          transition={reducedMotion ? { duration: 0 } : UI_SPRING}
+        />
+        <span className="mp-lane-status" aria-hidden="true" />
+        <div className="mp-pill-text">
+          <div className="mp-pill-name">{player.name}</div>
+          <div className="mp-pill-speed">{isSelf ? 'You · ' : ''}{speed}{player.finished && <span aria-hidden="true"> ✓</span>}</div>
+        </div>
+        <div className="mp-pill-pct" aria-hidden="true">{pct}%</div>
+      </div>
+    )
+  }
 
   return (
     <div

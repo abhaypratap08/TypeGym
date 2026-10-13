@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTypingEngine } from '@/hooks/useTypingEngine'
 import { useRoom, type ConnectionStatus } from '@/hooks/useRoom'
-import type { ActiveRoomSession } from '@/lib/multiplayer/types'
+import { MAX_PLAYERS, PILL_LAYOUT_THRESHOLD, type ActiveRoomSession } from '@/lib/multiplayer/types'
 import { loadRaceInput, saveRaceInput } from '@/lib/multiplayer/checkpoint'
 import { WORDS_LIST } from '@/lib/datasets'
 import { seededWordList } from '@/lib/seededRandom'
@@ -150,6 +150,7 @@ export default function MultiplayerRace({ session, onLeave }: Props) {
 
   const showWinner = phase === 'finished' && state.winnerId
   const connectedCount = state.players.filter(player => player.connected).length
+  const usePills = state.players.length > PILL_LAYOUT_THRESHOLD
 
   return (
     <div className="app-shell bg-grid">
@@ -168,7 +169,7 @@ export default function MultiplayerRace({ session, onLeave }: Props) {
                 <span className="sr-only" role="status">
                   {copyHint === 'copied' ? 'Room code copied.' : copyHint === 'err' ? 'Could not copy. Select the room code to copy it manually.' : ''}
                 </span>
-                <span className="mp-room-meta"><span className="sr-only">Connected players </span>{connectedCount}/5</span>
+                <span className="mp-room-meta"><span className="sr-only">Connected players </span>{connectedCount}/{MAX_PLAYERS}</span>
               </div>
               <button type="button" className="mp-nav-link" disabled={leaving} onClick={() => void handleLeave()}>
                 {leaving ? 'Leaving…' : 'Leave'}
@@ -206,7 +207,7 @@ export default function MultiplayerRace({ session, onLeave }: Props) {
                 key="race" className="mp-race-content"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={FADE_TRANSITION}
               >
-                <section className="mp-lanes-panel" aria-label="Race progress">
+                <section className={`mp-lanes-panel${usePills ? ' is-grid' : ''}`} aria-label="Race progress">
                   <AnimatePresence initial={false}>
                     {phase === 'countdown' && !state.closed && (
                       <motion.div
@@ -232,7 +233,7 @@ export default function MultiplayerRace({ session, onLeave }: Props) {
                   ) : state.players.map(player => (
                     <PlayerLane
                       key={player.id} player={player} isSelf={player.id === playerId}
-                      isWinner={state.winnerId === player.id} compact={isMobile} isRacing={phase === 'racing'}
+                      isWinner={state.winnerId === player.id} compact={isMobile} isRacing={phase === 'racing'} pill={usePills}
                     />
                   ))}
                 </section>

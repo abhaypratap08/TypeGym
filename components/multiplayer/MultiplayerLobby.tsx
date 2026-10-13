@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { UI_SPRING, FADE_TRANSITION } from '@/lib/motion'
 import MultiplayerRace from './MultiplayerRace'
 import { MultiplayerFooter, MultiplayerHeader } from './MultiplayerSiteChrome'
-import type { ActiveRoomSession } from '@/lib/multiplayer/types'
+import { PLAYER_COLOR_IDS, type ActiveRoomSession } from '@/lib/multiplayer/types'
 import { clearActiveSession, loadActiveSession, roomResponse, saveActiveSession } from '@/lib/multiplayer/session'
 
 export const PLAYER_COLORS = [
@@ -14,6 +14,11 @@ export const PLAYER_COLORS = [
   { id: 'coral',    hex: '#d96c5a', label: 'Coral'    },
   { id: 'amber',    hex: '#c9864e', label: 'Amber'    },
   { id: 'sage',     hex: '#6a9e7e', label: 'Sage'     },
+  { id: 'sky',      hex: '#5b8fd9', label: 'Sky'      },
+  { id: 'rose',     hex: '#d4709f', label: 'Rose'     },
+  { id: 'gold',     hex: '#c7a63a', label: 'Gold'     },
+  { id: 'slate',    hex: '#7d8ea3', label: 'Slate'    },
+  { id: 'indigo',   hex: '#6670d8', label: 'Indigo'   },
 ]
 
 export const GUEST_NAMES = [
@@ -37,7 +42,7 @@ function pickGuestName(exclude?: string): string {
 }
 
 function pickColorId(exclude?: string): string {
-  const ids = PLAYER_COLORS.map(c => c.id)
+  const ids = PLAYER_COLOR_IDS
   if (ids.length <= 1) return ids[0]!
   let next = pickRandom(ids)
   let n = 0

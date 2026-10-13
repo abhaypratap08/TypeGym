@@ -28,6 +28,7 @@ export type TestPhase = 'idle' | 'active' | 'finished'
 export interface WordResult {
   word:  string  // expected text
   typed: string  // what the user actually typed
+  partial?: boolean // true when the word was still in progress at timeout
 }
 
 export interface FinalResults {
@@ -98,6 +99,11 @@ export function calcAccuracy(correct: number, total: number): number {
   return Math.round((correct / total) * 100)
 }
 
+export function isWrongWord({ word, typed, partial }: WordResult): boolean {
+  if (typed === word) return false
+  return !(partial && word.startsWith(typed))
+}
+
 /**
  * Walk the completed results array and count correct vs total characters.
  * Pure function — safe to call in useMemo.
@@ -105,8 +111,8 @@ export function calcAccuracy(correct: number, total: number): number {
 export function analyzeResults(results: WordResult[]): { correctChars: number; totalChars: number } {
   let correctChars = 0
   let totalChars   = 0
-  for (const { word, typed } of results) {
-    totalChars += Math.max(word.length, typed.length)
+  for (const { word, typed, partial } of results) {
+    totalChars += partial ? typed.length : Math.max(word.length, typed.length)
     const len = Math.min(word.length, typed.length)
     for (let i = 0; i < len; i++) {
       if (typed[i] === word[i]) correctChars++
@@ -161,7 +167,7 @@ function collectResultsForFinish(
 ): WordResult[] {
   const currentWord = words[currentWordIdx]
   if (!currentWord || currentInput === '') return results
-  return [...results, { word: currentWord, typed: currentInput }]
+  return [...results, { word: currentWord, typed: currentInput, partial: true }]
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -264,7 +270,7 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
     setFinal({
       wpm:          calcWPM(correctChars, dur),
       accuracy:     calcAccuracy(correctChars, totalChars),
-      errors:       results.filter(r => r.typed !== r.word).length,
+      errors:       results.filter(isWrongWord).length,
       correctChars,
       totalChars,
       duration:     dur,
@@ -461,7 +467,7 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
     const { correctChars, totalChars } = committedStats
     const cw = words[currentWordIdx] ?? ''
     let ec = 0
-    const et = Math.max(cw.length, currentInput.length)
+    const et = currentInput.length
     for (let i = 0; i < currentInput.length && i < cw.length; i++) {
       if (currentInput[i] === cw[i]) ec++
     }
@@ -504,7 +510,7 @@ export function useTypingEngine(): TypingEngineState & TypingEngineActions {
       const stats = analyzeResults(checkpoint.wordResults)
       setFinal({
         wpm: calcWPM(stats.correctChars, seconds), accuracy: calcAccuracy(stats.correctChars, stats.totalChars),
-        errors: checkpoint.wordResults.filter(result => result.word !== result.typed).length,
+        errors: checkpoint.wordResults.filter(isWrongWord).length,
         ...stats, duration: Math.max(seconds, 1),
       })
     }
