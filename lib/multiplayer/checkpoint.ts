@@ -3,12 +3,13 @@ import type { ActiveRoomSession } from './types'
 
 const KEY = 'tg-race-input'
 
-export function loadRaceInput(session: ActiveRoomSession, words: string[]): CustomRaceCheckpoint | null {
+export function loadRaceInput(session: ActiveRoomSession, words: string[], round?: number): CustomRaceCheckpoint | null {
   try {
     const raw = sessionStorage.getItem(KEY)
     if (!raw) return null
     const saved = JSON.parse(raw)
     if (saved.roomId !== session.roomId || saved.playerId !== session.playerId) return null
+    if (round !== undefined && saved.round !== round) return null
     const value = saved.input as CustomRaceCheckpoint
     if (!value || !['idle', 'active', 'finished'].includes(value.phase) ||
       typeof value.currentInput !== 'string' || value.currentInput.length > 100 ||
@@ -22,8 +23,12 @@ export function loadRaceInput(session: ActiveRoomSession, words: string[]): Cust
   } catch { return null }
 }
 
-export function saveRaceInput(session: ActiveRoomSession, input: CustomRaceCheckpoint) {
+export function saveRaceInput(session: ActiveRoomSession, input: CustomRaceCheckpoint, round?: number) {
   try {
-    sessionStorage.setItem(KEY, JSON.stringify({ roomId: session.roomId, playerId: session.playerId, input }))
+    sessionStorage.setItem(KEY, JSON.stringify({ roomId: session.roomId, playerId: session.playerId, round, input }))
   } catch { /* The authoritative race remains recoverable if local storage fills. */ }
+}
+
+export function clearRaceInput() {
+  try { sessionStorage.removeItem(KEY) } catch { /* A missing storage area cannot affect the authoritative room. */ }
 }

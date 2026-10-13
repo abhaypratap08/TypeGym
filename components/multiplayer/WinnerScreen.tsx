@@ -24,6 +24,10 @@ interface WinnerScreenProps {
   selfId: string
   onLeave: () => void
   leaving?: boolean
+  isHost: boolean
+  onRematch: () => void
+  rematching?: boolean
+  rematchError?: string
 }
 
 const rowVariants = {
@@ -53,6 +57,10 @@ export default function WinnerScreen({
   selfId,
   onLeave,
   leaving,
+  isHost,
+  onRematch,
+  rematching,
+  rematchError,
 }: WinnerScreenProps) {
   const [runId, setRunId] = useState(0)
   const [displayWpm, setDisplayWpm] = useState(0)
@@ -416,6 +424,28 @@ export default function WinnerScreen({
           >
             Practice Solo
           </Link>
+
+          <div className="mp-rematch-control">
+            {isHost ? (
+              <button
+                type="button"
+                className="restart-btn mp-rematch-btn"
+                onClick={onRematch}
+                disabled={rematching}
+                aria-busy={rematching}
+              >
+                {rematching ? 'Rematching…' : 'Rematch'}
+              </button>
+            ) : (
+              <p className="mp-tap-hint mp-rematch-waiting" role="status" aria-live="polite">
+                Waiting for the host to start a rematch…
+              </p>
+            )}
+            {isHost && <p className="sr-only" role="status" aria-live="polite">
+              {rematching ? 'Starting a rematch.' : rematchError ? rematchError : ''}
+            </p>}
+            {rematchError && <p className="mp-error mp-rematch-error" role="alert">{rematchError}</p>}
+          </div>
 
           {isSelfWinner && (
             <button

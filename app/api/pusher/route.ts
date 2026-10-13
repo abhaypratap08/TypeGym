@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
     const authority = roomAuthority()
     // Authenticate before making provider calls, including presence lookups.
     await authority.snapshot(code, identity)
-    const presentIds = command.event === 'race-start' ? await presentPlayerIds(code) : undefined
+    const presentIds = command.event === 'race-start' || command.event === 'race-rematch'
+      ? await presentPlayerIds(code) : undefined
     const snapshot = await authority.command(code, identity, command, presentIds)
     await publishSnapshot(snapshot)
     return json({ snapshot })

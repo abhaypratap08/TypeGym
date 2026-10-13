@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useTypingEngine } from '@/hooks/useTypingEngine'
 import { useRoom, type ConnectionStatus } from '@/hooks/useRoom'
 import { MAX_PLAYERS, PILL_LAYOUT_THRESHOLD, type ActiveRoomSession } from '@/lib/multiplayer/types'
-import { loadRaceInput, saveRaceInput } from '@/lib/multiplayer/checkpoint'
+import { clearRaceInput, loadRaceInput, saveRaceInput } from '@/lib/multiplayer/checkpoint'
 import { WORDS_LIST } from '@/lib/datasets'
 import { seededWordList } from '@/lib/seededRandom'
 import { FADE_TRANSITION } from '@/lib/motion'
@@ -42,22 +42,38 @@ export default function MultiplayerRace({ session, onLeave }: Props) {
   const { roomCode, playerId } = session
   const {
     state, isHost, hasSnapshot, connectionStatus, error, retry,
-    emitProgress, emitFinish, startRace, leaveRoom,
+    emitProgress, emitFinish, startRace, rematch, leaveRoom,
   } = useRoom(session)
   const engine = useTypingEngine()
-  const { enterCustomWordRace, exitCustomWordRace, restoreCustomWordRace, captureCustomWordRace, finishCurrentTest } = engine
-  const words = useMemo(() => seededWordList(WORDS_LIST, 60, parseInt(roomCode, 10)), [roomCode])
+  const {
+    enterCustomWordRace, exitCustomWordRace, restoreCustomWordRace,
+    captureCustomWordRace, finishCurrentTest, resetTest,
+  } = engine
+  const words = useMemo(() => {
+    const seed = parseInt(roomCode, 10) + state.round * 10_000
+    return seededWordList(WORDS_LIST, 60, seed)
+  }, [roomCode, state.round])
   const inputRef = useRef<HTMLInputElement | null>(null)
   const finishEmittedRef = useRef(false)
+  const phase = state.phase
+  const currentRoundRef = useRef(state.round)
+  currentRoundRef.current = state.round
+  const previousRoomPhaseRef = useRef<typeof phase | null>(null)
+  const previousRoundRef = useRef<number | null>(null)
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [inputReady, setInputReady] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [timeLimit, setTimeLimit] = useState(60)
   const [leaving, setLeaving] = useState(false)
   const [starting, setStarting] = useState(false)
+  const [rematching, setRematching] = useState(false)
+  const [rematchError, setRematchError] = useState('')
   const [copyHint, setCopyHint] = useState<'idle' | 'copied' | 'err'>('idle')
-  const phase = state.phase
   const self = state.players.find(player => player.id === playerId)
+
+  useEffect(() => {
+    if (phase === 'waiting') setTimeLimit(state.timeLimit)
+  }, [phase, state.timeLimit])
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 640)
@@ -74,14 +90,30 @@ export default function MultiplayerRace({ session, onLeave }: Props) {
   useEffect(() => {
     if (inputReady || engine.mode !== 'words' || engine.words.length !== words.length ||
       !engine.words.every((word, index) => word === words[index])) return
-    const checkpoint = loadRaceInput(session, words)
+    const checkpoint = loadRaceInput(session, words, state.round)
     if (checkpoint) restoreCustomWordRace(checkpoint)
     setInputReady(true)
-  }, [inputReady, engine.mode, engine.words, words, session, restoreCustomWordRace])
+  }, [inputReady, engine.mode, engine.words, words, session, state.round, restoreCustomWordRace])
 
   useEffect(() => {
-    if (inputReady) saveRaceInput(session, captureCustomWordRace())
-  }, [inputReady, session, captureCustomWordRace, engine.currentInput, engine.wordResults, engine.phase])
+    if (inputReady) saveRaceInput(session, captureCustomWordRace(), state.round)
+  }, [inputReady, session, state.round, captureCustomWordRace, engine.currentInput, engine.wordResults, engine.phase])
+
+  useEffect(() => {
+    const returnedToWaiting = phase === 'waiting' && previousRoomPhaseRef.current === 'finished'
+    const changedRound = previousRoundRef.current !== null && previousRoundRef.current !== state.round
+    if (hasSnapshot && phase === 'waiting' && (returnedToWaiting || changedRound)) {
+      clearRaceInput()
+      resetTest()
+      finishEmittedRef.current = false
+      inputRef.current?.blur()
+      setInputReady(false)
+      setRematching(false)
+      setRematchError('')
+    }
+    previousRoomPhaseRef.current = phase
+    previousRoundRef.current = state.round
+  }, [hasSnapshot, phase, resetTest, state.round])
 
   const canType = inputReady && hasSnapshot && connectionStatus === 'connected' &&
     phase === 'racing' && state.timeLeft > 0 && !state.closed &&
@@ -114,11 +146,12 @@ export default function MultiplayerRace({ session, onLeave }: Props) {
       state.closed || self?.finished || self?.withdrawn || engine.phase !== 'finished' ||
       engine.wordResults.length < engine.words.length || finishEmittedRef.current) return
     finishEmittedRef.current = true
+    const emittedRound = state.round
     void emitFinish(Math.min(400, engine.finalResults?.wpm ?? engine.liveWPM)).then(sent => {
-      if (!sent) finishEmittedRef.current = false
+      if (!sent && currentRoundRef.current === emittedRound) finishEmittedRef.current = false
     })
   }, [inputReady, connectionStatus, phase, state.closed, self?.finished, self?.withdrawn,
-    engine.phase, engine.wordResults.length, engine.words.length, engine.finalResults, engine.liveWPM, emitFinish])
+    state.round, engine.phase, engine.wordResults.length, engine.words.length, engine.finalResults, engine.liveWPM, emitFinish])
 
   useEffect(() => () => {
     if (copyResetRef.current) clearTimeout(copyResetRef.current)
@@ -136,6 +169,15 @@ export default function MultiplayerRace({ session, onLeave }: Props) {
     await startRace(timeLimit)
     setStarting(false)
   }
+
+  const handleRematch = useCallback(async () => {
+    if (rematching) return
+    setRematching(true)
+    setRematchError('')
+    const result = await rematch()
+    if (!result.success) setRematchError(result.error)
+    setRematching(false)
+  }, [rematch, rematching])
 
   const copyRoomCode = useCallback(async () => {
     if (copyResetRef.current) clearTimeout(copyResetRef.current)
@@ -200,6 +242,8 @@ export default function MultiplayerRace({ session, onLeave }: Props) {
                 <WinnerScreen
                   players={state.players} winnerId={state.winnerId!} selfId={playerId}
                   onLeave={() => void handleLeave()} leaving={leaving}
+                  isHost={isHost} onRematch={() => void handleRematch()}
+                  rematching={rematching} rematchError={rematchError}
                 />
               </motion.div>
             ) : (

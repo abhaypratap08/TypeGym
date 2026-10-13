@@ -20,6 +20,7 @@ export interface RoomSnapshot {
   roomCode: string
   roomId: string
   revision: number
+  round: number
   hostId: string
   phase: RoomPhase
   countdown: number
@@ -44,9 +45,10 @@ export interface ActiveRoomSession {
 
 export type RaceCommand =
   | { event: 'race-start'; data: { timeLimit: number } }
-  | { event: 'player-progress'; data: { progress: number; wpm: number; sequence: number } }
-  | { event: 'player-finish'; data: { wpm: number; sequence: number } }
+  | { event: 'player-progress'; data: { progress: number; wpm: number; sequence: number; round: number } }
+  | { event: 'player-finish'; data: { wpm: number; sequence: number; round: number } }
   | { event: 'race-sync'; data: Record<string, never> }
+  | { event: 'race-rematch'; data: { round: number } }
 
 export const MAX_PLAYERS = 10
 export const PILL_LAYOUT_THRESHOLD = 5

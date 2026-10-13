@@ -16,6 +16,10 @@ function validateCode(code: string) {
   if (!ROOM_CODE_PATTERN.test(code)) throw new RoomError('Enter a valid 4-digit code')
 }
 
+function roomRound(room: RoomRecord) {
+  return Number.isSafeInteger(room.round) && room.round >= 0 ? room.round : 0
+}
+
 function authorize(room: RoomRecord, credentials: RoomCredentials, allowLeft = false) {
   const member = room.members[credentials.playerId]
   const expected = member ? Buffer.from(member.tokenHash, 'hex') : Buffer.alloc(32)
@@ -43,7 +47,7 @@ export function snapshotOf(record: RoomRecord, now = Date.now()): RoomSnapshot {
   const room = { ...record }
   advanceClock(room, now)
   return {
-    roomCode: room.roomCode, roomId: room.roomId, revision: room.revision,
+    roomCode: room.roomCode, roomId: room.roomId, revision: room.revision, round: roomRound(room),
     hostId: room.hostId, phase: room.phase,
     countdown: room.phase === 'countdown' ? Math.max(0, Math.ceil((room.raceStartedAt! - now) / 1000)) : 0,
     timeLimit: room.timeLimit, raceStartedAt: room.raceStartedAt,
@@ -62,13 +66,17 @@ export class RoomAuthority {
     return room
   }
 
-  private async update(code: string, change: (room: RoomRecord) => void) {
+  private async update(code: string, change: (room: RoomRecord) => void | boolean) {
     // Retry conflicting CAS operations, never independent read/modify/write.
     for (let attempt = 0; attempt < 20; attempt++) {
       const previous = await this.read(code)
       const next = structuredClone(previous)
+      const previousPhase = next.phase
+      const previousWinnerId = next.winnerId
       advanceClock(next, this.now())
-      change(next)
+      const result = change(next)
+      const clockChanged = next.phase !== previousPhase || next.winnerId !== previousWinnerId
+      if (result === false && !clockChanged) return snapshotOf(previous, this.now())
       next.revision++
       next.expiresAt = this.now() + ROOM_TTL_SECONDS * 1000
       if (await this.store.compareAndSet(code, previous, next)) return snapshotOf(next, this.now())
@@ -101,7 +109,7 @@ export class RoomAuthority {
     } else {
       for (let attempt = 0; attempt < 30 && !snapshot; attempt++) {
         const room: RoomRecord = {
-          roomCode: String(randomInt(1000, 10000)), roomId: randomUUID(), revision: 1,
+          roomCode: String(randomInt(1000, 10000)), roomId: randomUUID(), revision: 1, round: 0,
           hostId: player.id, phase: 'waiting', timeLimit: 60, raceStartedAt: null, winnerId: null,
           closed: false, expiresAt: this.now() + ROOM_TTL_SECONDS * 1000,
           members: { [player.id]: membership }, players: [player],
@@ -150,10 +158,43 @@ export class RoomAuthority {
     return this.update(code, room => {
       authorize(room, credentials)
       if (room.closed) throw new RoomError('The host ended this room.', 410)
+      if (command.event === 'race-rematch') {
+        if (room.hostId !== credentials.playerId) throw new RoomError('Only the host can rematch the race', 403)
+        if (!Number.isSafeInteger(command.data.round) || command.data.round < 0) throw new RoomError('Invalid round')
+        // A retry belongs to the round it reset, even if a later race has finished.
+        if (command.data.round < roomRound(room)) return false
+        if (command.data.round !== roomRound(room)) throw new RoomError('This round is no longer current', 409)
+        if (room.phase !== 'finished') throw new RoomError('The race is not finished', 409)
+        if (presentIds && !presentIds.includes(credentials.playerId)) throw new RoomError('Reconnect before starting a rematch', 409)
+
+        const retained = room.players.filter(player => {
+          const connected = presentIds ? presentIds.includes(player.id) : true
+          return room.members[player.id]?.active && !player.withdrawn && connected
+        })
+        const retainedIds = new Set(retained.map(player => player.id))
+        room.players = retained.map(player => ({
+          ...player,
+          progress: 0,
+          wpm: 0,
+          finished: false,
+          sequence: 0,
+          lastSeenAt: undefined,
+          withdrawn: undefined,
+          connected: undefined,
+        }))
+        room.members = Object.fromEntries(
+          Object.entries(room.members).filter(([playerId, member]) => retainedIds.has(playerId) && member.active),
+        )
+        room.round = roomRound(room) + 1
+        room.phase = 'waiting'
+        room.raceStartedAt = null
+        room.winnerId = null
+        return true
+      }
       if (command.event === 'race-start') {
         if (room.hostId !== credentials.playerId) throw new RoomError('Only the host can start the race', 403)
         if (![30, 60, 90, 120].includes(command.data.timeLimit)) throw new RoomError('Invalid time limit')
-        if (room.phase !== 'waiting') return // duplicate start cannot reset the race clock
+        if (room.phase !== 'waiting') return false // duplicate start cannot reset the race clock
         const ready = room.players.filter(p => room.members[p.id]?.active && presentIds?.includes(p.id))
         if (ready.length < 2 || !ready.some(p => p.id === room.hostId)) throw new RoomError('Wait for at least two connected players', 409)
         // An admitted player may be refreshing right now. Losing a socket must
@@ -163,9 +204,13 @@ export class RoomAuthority {
         room.timeLimit = command.data.timeLimit
         return
       }
-      if (command.event === 'race-sync') return
+      if (command.event === 'race-sync') return false
       const player = room.players.find(p => p.id === credentials.playerId)
       if (!player || player.withdrawn) throw new RoomError('Player is not participating', 403)
+      if (command.event === 'player-progress' || command.event === 'player-finish') {
+        if (!Number.isSafeInteger(command.data.round) || command.data.round < 0) throw new RoomError('Invalid race update')
+        if (command.data.round !== roomRound(room)) return false
+      }
       const { sequence, wpm } = command.data
       if (!Number.isSafeInteger(sequence) || sequence < 1 || !Number.isFinite(wpm) || wpm < 0 || wpm > 400) {
         throw new RoomError('Invalid race update')
@@ -173,8 +218,8 @@ export class RoomAuthority {
       if (command.event === 'player-progress' && (!Number.isFinite(command.data.progress) || command.data.progress < 0 || command.data.progress > 1)) {
         throw new RoomError('Invalid progress')
       }
-      if (room.phase !== 'racing' || player.finished || sequence <= player.sequence) return
-      if (command.event === 'player-progress' && command.data.progress < player.progress) return
+      if (room.phase !== 'racing' || player.finished || sequence <= player.sequence) return false
+      if (command.event === 'player-progress' && command.data.progress < player.progress) return false
       player.sequence = sequence
       player.wpm = wpm
       player.lastSeenAt = this.now()

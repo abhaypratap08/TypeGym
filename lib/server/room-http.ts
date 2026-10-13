@@ -36,16 +36,25 @@ export function raceCommand(event: unknown, data: unknown): RaceCommand {
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new RoomError('Invalid race payload')
   const values = data as Record<string, unknown>
   switch (event) {
+    case 'race-rematch':
+      if (typeof values.round === 'number' && Number.isSafeInteger(values.round) && values.round >= 0) {
+        return { event, data: { round: values.round } }
+      }
+      break
     case 'race-start':
       if (typeof values.timeLimit === 'number') return { event, data: { timeLimit: values.timeLimit } }
       break
     case 'player-progress':
-      if (typeof values.progress === 'number' && typeof values.wpm === 'number' && typeof values.sequence === 'number') {
-        return { event, data: { progress: values.progress, wpm: values.wpm, sequence: values.sequence } }
+      if (typeof values.progress === 'number' && typeof values.wpm === 'number' && typeof values.sequence === 'number' &&
+        typeof values.round === 'number' && Number.isSafeInteger(values.round) && values.round >= 0) {
+        return { event, data: { progress: values.progress, wpm: values.wpm, sequence: values.sequence, round: values.round } }
       }
       break
     case 'player-finish':
-      if (typeof values.wpm === 'number' && typeof values.sequence === 'number') return { event, data: { wpm: values.wpm, sequence: values.sequence } }
+      if (typeof values.wpm === 'number' && typeof values.sequence === 'number' &&
+        typeof values.round === 'number' && Number.isSafeInteger(values.round) && values.round >= 0) {
+        return { event, data: { wpm: values.wpm, sequence: values.sequence, round: values.round } }
+      }
       break
     case 'race-sync': return { event, data: {} }
   }

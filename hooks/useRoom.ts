@@ -16,6 +16,17 @@ const PUSHER_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER ?? 'mt1'
 const PROGRESS_THROTTLE_MS = 2_000
 type Member = { id: string; info: PlayerIdentity }
 type Members = { each: (callback: (member: Member) => void) => void }
+type SnapshotWithRound = RoomSnapshot & { round?: unknown }
+
+function snapshotRound(snapshot: RoomSnapshot): number | null {
+  const round = (snapshot as SnapshotWithRound).round
+  if (typeof round === 'number' && Number.isSafeInteger(round) && round >= 0) return round
+  // Older snapshots have no round field. A waiting revision is the stable,
+  // authoritative marker for a new round; revisions during a race are not.
+  return snapshot.phase === 'waiting' && Number.isSafeInteger(snapshot.revision)
+    ? snapshot.revision
+    : null
+}
 
 export function useRoom(session: ActiveRoomSession) {
   const [snapshot, setSnapshot] = useState<RoomSnapshot | null>(null)
@@ -25,6 +36,7 @@ export function useRoom(session: ActiveRoomSession) {
   const [clock, setClock] = useState(Date.now())
   const [retryKey, setRetryKey] = useState(0)
   const snapshotRef = useRef<RoomSnapshot | null>(null)
+  const roundRef = useRef(0)
   const clockOffset = useRef(0)
   const sequence = useRef(0)
   const lastProgress = useRef(0)
@@ -46,6 +58,7 @@ export function useRoom(session: ActiveRoomSession) {
     connectedRef.current = false
     if (snapshotRef.current && snapshotRef.current.roomId !== session.roomId) {
       snapshotRef.current = null
+      roundRef.current = 0
       sequence.current = 0
       lastProgress.current = 0
       setSnapshot(null)
@@ -58,6 +71,14 @@ export function useRoom(session: ActiveRoomSession) {
       if (previous && (next.revision < previous.revision ||
         (next.revision === previous.revision && next.serverNow < previous.serverNow))) return
       snapshotRef.current = next
+      const nextRound = snapshotRound(next)
+      if (nextRound !== null) {
+        if (nextRound !== roundRef.current) {
+          sequence.current = 0
+          lastProgress.current = 0
+        }
+        roundRef.current = nextRound
+      }
       sequence.current = Math.max(sequence.current, next.players.find(p => p.id === session.playerId)?.sequence ?? 0)
       setSnapshot(next)
       setClock(Date.now() + clockOffset.current)
@@ -215,14 +236,34 @@ export function useRoom(session: ActiveRoomSession) {
   }, [snapshot, connectionStatus, send])
 
   const startRace = useCallback((timeLimit: number) => send({ event: 'race-start', data: { timeLimit } }), [send])
+  const rematch = useCallback(async () => {
+    try {
+      const current = sessionRef.current
+      const { snapshot: next } = await fetch('/api/pusher', {
+        method: 'POST',
+        headers: { ...sessionHeaders(current), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: roomChannel(current.roomCode), event: 'race-rematch', data: { round: roundRef.current },
+        }),
+      }).then(roomResponse<{ snapshot: RoomSnapshot }>)
+      if (next.phase !== 'waiting') throw new Error('Could not reset the room for a rematch. Please retry.')
+      applyRef.current(next)
+      setError('')
+      return { success: true as const }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Could not start a rematch. Please retry.'
+      setError(message)
+      return { success: false as const, error: message }
+    }
+  }, [])
   const emitProgress = useCallback((progress: number, wpm: number) => {
     if (!connectedRef.current || snapshotRef.current?.closed) return
     const now = Date.now()
     if (now - lastProgress.current < PROGRESS_THROTTLE_MS) return
     lastProgress.current = now
-    void send({ event: 'player-progress', data: { progress, wpm, sequence: ++sequence.current } })
+    void send({ event: 'player-progress', data: { progress, wpm, sequence: ++sequence.current, round: roundRef.current } })
   }, [send])
-  const emitFinish = useCallback((wpm: number) => send({ event: 'player-finish', data: { wpm, sequence: ++sequence.current } }), [send])
+  const emitFinish = useCallback((wpm: number) => send({ event: 'player-finish', data: { wpm, sequence: ++sequence.current, round: roundRef.current } }), [send])
   const leaveRoom = useCallback(async () => {
     try {
       const current = sessionRef.current
@@ -240,9 +281,10 @@ export function useRoom(session: ActiveRoomSession) {
       ...timing, players: reconcilePlayers(members, snapshot),
       winnerId: snapshot?.winnerId ?? null, timeLimit: snapshot?.timeLimit ?? 60,
       raceStartedAt: snapshot?.raceStartedAt ?? null, closed: snapshot?.closed ?? false,
+      round: roundRef.current,
     },
     isHost: snapshot?.hostId === session.playerId,
     hasSnapshot: snapshot !== null,
-    connectionStatus, error, retry, emitProgress, emitFinish, startRace, leaveRoom,
+    connectionStatus, error, retry, emitProgress, emitFinish, startRace, rematch, leaveRoom,
   }
 }

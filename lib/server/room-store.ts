@@ -4,6 +4,7 @@ export interface RoomRecord {
   roomCode: string
   roomId: string
   revision: number
+  round: number
   hostId: string
   phase: RoomPhase
   timeLimit: number

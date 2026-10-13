@@ -43,6 +43,8 @@ It supports timed tests, fixed word-count tests, quote typing, and code snippet 
 - Multiplayer typing races (up to 10 players) with a 4-digit room code, live
   progress lanes, and a countdown-to-finish flow, powered by Pusher Presence
   Channels and authoritative room snapshots.
+- Host-only rematches keep connected players in the same room, reset the race
+  state, and generate a new round of words without requiring a new room code.
 
 ---
 
@@ -115,15 +117,21 @@ connection lifecycle event, not a leave.
 - A host creates a room and gets a random 4-digit code; up to 9 more players
   can join with that code (10 players max per room).
 - All players in a room type the same word list, deterministically generated
-  from the room code via a seeded PRNG (`lib/seededRandom.ts`), so no network
-  round-trip is needed to sync the text itself.
+  from the room code and authoritative round via a seeded PRNG
+  (`lib/seededRandom.ts`), so no network round-trip is needed to sync the text
+  itself and each rematch gets a new list.
 - The room channel is `presence-room-{roomCode}`. Pusher's
   `subscription_succeeded`, `member_added`, and `member_removed` events hydrate
   membership immediately; there is no re-announce or 300 ms handshake.
 - Race commands are authenticated by the room session and applied with a
   versioned compare-and-set update before a complete `room-state` snapshot is
   published through `POST /api/pusher`. Progress and finish commands are
-  idempotent by player sequence number.
+  idempotent by player sequence number and scoped to an authoritative room
+  round, so late events from a previous race cannot affect a rematch.
+- When a race is finished, only the host can issue **Rematch**. The room returns
+  to `waiting`, retains connected active players and their identities/colors,
+  drops withdrawn or left players, clears race statistics, and preserves the
+  selected time limit. Other players return to the lobby view automatically.
 - `POST /api/pusher/auth` signs Presence subscriptions with server-only Pusher
   credentials. The Pusher app secret never reaches the browser.
 - Room sessions are stored in `sessionStorage` under `tg-active-room`. The
@@ -135,6 +143,8 @@ connection lifecycle event, not a leave.
 - An admitted seat survives a socket disconnect. Leave releases it; host Leave
   closes the room without electing a replacement host. New admissions are closed
   after a race starts, but existing players can reconnect through the results.
+- A rematch keeps only players present when the host requests it; disconnected,
+  withdrawn, and explicitly left players are removed before the next lobby.
 - Countdown and deadline use the server's absolute `raceStartedAt`. Local clock
   ticks update the display only. A single deadline command asks the authority to
   finalize the race; there is no periodic snapshot-fetch loop.
@@ -189,6 +199,10 @@ headers, player names, or tokens. They are disabled in production.
 5. Click Leave. This alone sends `DELETE /api/rooms/{code}`, logs
    `session_cleared`, and removes `tg-active-room` and `tg-race-input`. Peers see
    `member_removed`; host Leave also publishes the closed-room snapshot.
+
+From the finished results screen, the host can click **Rematch**. This is one
+authoritative transition and is safe to retry; a second request after the room
+is already waiting leaves the new round unchanged.
 
 Automated coverage in `tests/multiplayer-*.test.cjs` exercises these client
 lifecycles with a controlled Pusher transport, actual route handlers/signatures,
@@ -398,6 +412,9 @@ The items below are known trade-offs or edge cases that are documented here rath
 - **Authoritative finish timing.** The server snapshot owns the race deadline and winner selection. A reconnecting client receives the current phase, timer origin, progress, and finish state without waiting for a future progress event.
 - **Maximum 10 players per room.** Admission and race start are checked server-side with stable player IDs. Presence and snapshot reconciliation are idempotent, so reconnecting a player does not append a duplicate lane.
 - **Requires Pusher and shared storage credentials.** Without Pusher variables or production room storage, room creation returns a setup error rather than pretending that a multiplayer room can synchronize.
+- **Host leave still closes the room without host migration.** If the host
+  leaves from the results screen, remaining players cannot rematch that closed
+  room; they must leave and create or join another room.
 
 ### Mobile
 
@@ -423,6 +440,7 @@ The items below are known trade-offs or edge cases that are documented here rath
 - Add theme customization.
 - Add sound and haptic feedback options.
 - Expand automated tests for timer edge cases and multiplayer synchronization.
+- ~~Add host rematches within the same multiplayer room.~~ Done.
 - Persist multiplayer results (leaderboards, match history).
 - Support more than 10 players per multiplayer room.
 - Add accessibility polish for screen readers and keyboard-only navigation.
