@@ -43,6 +43,12 @@
   },
   "overrides": {
     "postcss-selector-parser": "6.1.5",
-    "postcss": "$postcss"
+    "postcss": "$postcss",
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.8"
+    },
+    "@ts-morph/common": {
+      "minimatch": "^11.0.8"
+    }
   }
 }
