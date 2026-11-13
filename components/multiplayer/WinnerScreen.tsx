@@ -456,7 +456,7 @@ export default function WinnerScreen({
                 setCelebrating(true)
               }}
             >
-              Celebrate 🎉
+              Celebrate
             </button>
           )}
         </div>

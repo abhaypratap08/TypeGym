@@ -434,7 +434,6 @@ main[tabindex="-1"]:focus { outline: none; }
 .site-nav-link { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .5rem 1rem; border-radius: var(--r-control); font-size: .875rem; font-weight: 600; letter-spacing: -.01em; color: var(--ink-secondary); text-decoration: none; }
 .site-nav-link[aria-current="page"] { color: var(--teal); background: var(--teal-dim); }
 .site-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
-.theme-toggle { position: relative; width: 2.75rem; height: 2.75rem; flex-shrink: 0; border: 0; border-radius: var(--r-control); background: transparent; color: var(--ink-secondary); }
 .theme-toggle-icon { position: absolute; inset: 0; display: grid; place-items: center; }
 .skip-link { position: fixed; top: -6rem; left: 1rem; z-index: 100; padding: .75rem 1rem; background: var(--surface-window); color: var(--ink); border-radius: .75rem; }
 .skip-link:focus { top: 1rem; }
@@ -478,10 +477,10 @@ main[tabindex="-1"]:focus { outline: none; }
 .mode-bar-sub .mode-btn:hover:not(.active) { background: var(--surface-panel); color: var(--ink); }
 .mode-option-label { position: relative; }
 .mp-time-options { background: var(--surface-control); flex-wrap: wrap; }
-.mp-time-options .mode-btn.active { background: var(--surface-window); box-shadow: 0 1px 4px rgb(0 0 0 / 8%); }
+.mp-time-options .mode-btn.active { background: var(--duration-active-bg); color: var(--duration-active-text); border-color: var(--duration-active-border); box-shadow: none; }
 
 /* Immediate press feedback, native release-to-commit behavior, no input locks. */
-.mode-btn, .restart-btn, .mp-nav-link, .mp-secondary-btn, .theme-toggle, .site-nav-link {
+.mode-btn, .restart-btn, .mp-nav-link, .mp-secondary-btn, .site-nav-link {
   transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out;
 }
 /* Theme colors can reverse immediately without animating per-keystroke feedback. */
@@ -490,17 +489,18 @@ main[tabindex="-1"]:focus { outline: none; }
 .mp-lane-avatar, .mp-lane-track, .mp-leaderboard-row {
   transition: background-color 180ms ease-out, border-color 180ms ease-out, color 180ms ease-out;
 }
-.mode-btn:active:not(:disabled), .restart-btn:active:not(:disabled), .mp-nav-link:active:not(:disabled), .mp-secondary-btn:active:not(:disabled), .theme-toggle:active, .site-nav-link:active {
-  transform: scale(.97); background-color: var(--surface-active);
+.mode-btn:active:not(:disabled), .restart-btn:active:not(:disabled), .mp-nav-link:active:not(:disabled), .mp-secondary-btn:active:not(:disabled), .site-nav-link:active {
+  transform: scale(.97); background-color: var(--button-active-bg);
 }
 @media (hover: hover) {
-  .mode-btn:not(.active):hover, .theme-toggle:hover, .site-nav-link:not([aria-current]):hover { background: var(--surface-hover); color: var(--ink); }
-  .restart-btn:hover:not(:disabled), .mp-nav-link:hover:not(:disabled), .mp-secondary-btn:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--border-focus); color: var(--ink); }
+  .mode-btn:not(.active):hover, .site-nav-link:not([aria-current]):hover { background: var(--surface-hover); color: var(--ink); }
+  .restart-btn:hover:not(:disabled), .mp-nav-link:hover:not(:disabled), .mp-secondary-btn:hover:not(:disabled) { background: var(--button-hover-bg); color: var(--button-hover-text); border-color: var(--button-focus-ring); }
 }
 .restart-btn, .mp-nav-link { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 2.75rem; padding: .625rem 1rem; border-radius: var(--r-control); border: 1px solid var(--button-border); background: var(--button-bg); color: var(--button-text); font-size: .8125rem; font-weight: 600; text-decoration: none; transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out; }
 .restart-btn:hover:not(:disabled), .mp-nav-link:hover:not(:disabled) { background: var(--button-hover-bg); color: var(--button-hover-text); border-color: var(--button-focus-ring); }
 .restart-btn:active:not(:disabled), .mp-nav-link:active:not(:disabled) { background: var(--button-active-bg); }
-.mp-secondary-btn { color: var(--teal); background: var(--teal-dim); border-color: transparent; }
+.mp-secondary-btn { color: var(--button-text); background: var(--button-bg); border-color: var(--button-border); }
+.mp-secondary-btn:hover:not(:disabled) { background: var(--button-hover-bg); color: var(--button-hover-text); border-color: var(--button-focus-ring); }
 kbd { display: inline-block; padding: .125rem .375rem; border: 1px solid var(--border-control); border-radius: .3125rem; background: var(--surface-panel); color: var(--ink-secondary); font-family: var(--font-system); font-size: .6875rem; font-weight: 500; line-height: 1.4; }
 
 /* A steady workspace: stats are always present, so typing never shifts text. */
@@ -605,7 +605,7 @@ kbd { display: inline-block; padding: .125rem .375rem; border: 1px solid var(--b
 .mp-tap-hint, .mp-form-hint { font-size: .8125rem; color: var(--ink-secondary); line-height: 1.6; text-wrap: pretty; }
 .mp-lane-note { margin: 1.25rem 0; }
 .mp-create-btn { width: 100%; }
-.mp-create-btn, .mp-start-btn { background: var(--teal); border-color: transparent; color: var(--surface-window); }
+.mp-create-btn, .mp-start-btn { width: 100%; }
 .mp-muted-rule { display: flex; align-items: center; gap: .75rem; font-size: .75rem; color: var(--ink-tertiary); margin: 1.25rem 0; }
 .mp-muted-rule::before, .mp-muted-rule::after { content: ''; flex: 1; height: 1px; background: var(--border-panel); }
 .mp-join-controls { display: flex; align-items: stretch; gap: .5rem; }
@@ -844,7 +844,7 @@ kbd { display: inline-block; padding: .125rem .375rem; border: 1px solid var(--b
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
   .typing-cursor { animation: none; }
-  .mode-btn:active:not(:disabled), .restart-btn:active:not(:disabled), .mp-nav-link:active:not(:disabled), .mp-secondary-btn:active:not(:disabled), .theme-toggle:active, .site-nav-link:active { transform: none; }
+  .mode-btn:active:not(:disabled), .restart-btn:active:not(:disabled), .mp-nav-link:active:not(:disabled), .mp-secondary-btn:active:not(:disabled), .site-nav-link:active { transform: none; }
 }
 @media (prefers-reduced-transparency: reduce) {
   .site-header { background: var(--surface-window); backdrop-filter: none; -webkit-backdrop-filter: none; border-color: var(--border-window); }
