@@ -406,7 +406,7 @@ export default function WinnerScreen({
           })}
         </ol>
 
-        <div className="mp-result-actions">
+        <div className="winner-actions-row">
           <button
             type="button"
             className="restart-btn"
@@ -418,15 +418,8 @@ export default function WinnerScreen({
               : 'Leave room'}
           </button>
 
-          <Link
-            href="/"
-            className="mp-secondary-btn"
-          >
-            Practice Solo
-          </Link>
-
-          <div className="mp-rematch-control">
-            {isHost ? (
+          {isHost ? (
+            <>
               <button
                 type="button"
                 className="restart-btn mp-rematch-btn"
@@ -436,30 +429,35 @@ export default function WinnerScreen({
               >
                 {rematching ? 'Rematching…' : 'Rematch'}
               </button>
-            ) : (
-              <p className="mp-tap-hint mp-rematch-waiting" role="status" aria-live="polite">
-                Waiting for the host to start a rematch…
-              </p>
-            )}
-            {isHost && <p className="sr-only" role="status" aria-live="polite">
-              {rematching ? 'Starting a rematch.' : rematchError ? rematchError : ''}
-            </p>}
-            {rematchError && <p className="mp-error mp-rematch-error" role="alert">{rematchError}</p>}
-          </div>
-
-          {isSelfWinner && (
-            <button
-              type="button"
+              <Link
+                href="/"
+                className="mp-secondary-btn"
+              >
+                Practice Solo
+              </Link>
+            </>
+          ) : (
+            <Link
+              href="/"
               className="mp-secondary-btn"
-              onClick={() => {
-                setRunId(k => k + 1)
-                setCelebrating(true)
-              }}
             >
-              Celebrate
-            </button>
+              Practice Solo
+            </Link>
           )}
         </div>
+
+        {isSelfWinner && (
+          <button
+            type="button"
+            className="winner-celebrate-btn"
+            onClick={() => {
+              setRunId(k => k + 1)
+              setCelebrating(true)
+            }}
+          >
+            Celebrate
+          </button>
+        )}
       </motion.section>
 
       <AnimatePresence>

@@ -200,19 +200,16 @@ export default function MultiplayerRace({ session, onLeave }: Props) {
         <MultiplayerHeader
           right={(
             <>
-              <div className="mp-room-actions" role="group" aria-label="Room details">
+              <div className="mp-room-info">
                 <span className="mp-room-code"><span className="sr-only">Room code </span>{roomCode}</span>
                 <button
-                  type="button" className="mp-secondary-btn" onClick={copyRoomCode}
+                  type="button" className="mp-copy-btn" onClick={copyRoomCode}
                   aria-label={copyHint === 'copied' ? 'Copied room code' : copyHint === 'err' ? 'Try again to copy room code' : 'Copy room code'}
                 >
                   {copyHint === 'copied' ? 'Copied' : copyHint === 'err' ? 'Try again' : 'Copy'}
                 </button>
-                <span className="sr-only" role="status">
-                  {copyHint === 'copied' ? 'Room code copied.' : copyHint === 'err' ? 'Could not copy. Select the room code to copy it manually.' : ''}
-                </span>
-                <span className="mp-room-meta"><span className="sr-only">Connected players </span>{connectedCount}/{MAX_PLAYERS}</span>
               </div>
+              <span className="mp-player-count">{connectedCount}/{MAX_PLAYERS}</span>
               <button type="button" className="mp-nav-link" disabled={leaving} onClick={() => void handleLeave()}>
                 {leaving ? 'Leaving…' : 'Leave'}
               </button>
@@ -319,10 +316,10 @@ export default function MultiplayerRace({ session, onLeave }: Props) {
                   <div className="mp-waiting-controls">
                     {isHost ? (
                       <>
-                        <div className="mp-time-options" role="group" aria-label="Race duration">
+                        <div className="mp-duration-row" role="group" aria-label="Race duration">
                           {[30, 60, 90, 120].map(duration => (
                             <button
-                              key={duration} type="button" className={`mode-btn${timeLimit === duration ? ' active' : ''}`}
+                              key={duration} type="button" className={`mp-duration-btn${timeLimit === duration ? ' active' : ''}`}
                               onClick={() => setTimeLimit(duration)} aria-pressed={timeLimit === duration}
                             >
                               {duration}s
