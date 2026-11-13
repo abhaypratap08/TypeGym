@@ -600,8 +600,19 @@ kbd { display: inline-block; padding: .125rem .375rem; border: 1px solid var(--b
 .mp-input:focus { border-color: var(--border-focus); }
 .mp-input-error { border-color: var(--coral); }
 .mp-create-actions { display: flex; align-items: stretch; gap: 10px; width: 100%; margin-top: 12px; }
-.mp-create-btn { flex: 3; height: 46px; min-width: 0; }
-.mp-random-btn { flex: 2; height: 46px; min-width: 0; }
+.mp-create-actions .mp-create-btn,
+.mp-create-actions .restart-btn {
+  flex: 3;
+  width: auto;
+  height: 46px;
+}
+.mp-create-actions .mp-random-btn,
+.mp-create-actions .mp-random-name {
+  flex: 2;
+  width: auto;
+  height: 46px;
+  min-width: 0;
+}
 .mp-join-section { margin-bottom: 1rem; }
 .mp-join-btn { width: 100%; margin-top: 12px; height: 46px; }
 .mp-tap-hint, .mp-form-hint { font-size: .8125rem; color: var(--ink-secondary); line-height: 1.6; text-wrap: pretty; }
