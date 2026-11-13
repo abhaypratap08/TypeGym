@@ -499,7 +499,7 @@ main[tabindex="-1"]:focus { outline: none; }
 .restart-btn, .mp-nav-link { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 2.75rem; padding: .625rem 1rem; border-radius: var(--r-control); border: 1px solid var(--button-border); background: var(--button-bg); color: var(--button-text); font-size: .8125rem; font-weight: 600; text-decoration: none; transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out; }
 .restart-btn:hover:not(:disabled), .mp-nav-link:hover:not(:disabled) { background: var(--button-hover-bg); color: var(--button-hover-text); border-color: var(--button-focus-ring); }
 .restart-btn:active:not(:disabled), .mp-nav-link:active:not(:disabled) { background: var(--button-active-bg); }
-.mp-secondary-btn { color: var(--button-text); background: var(--button-bg); border-color: var(--button-border); }
+.mp-secondary-btn { color: var(--button-text); background: var(--button-bg); border: 1px solid var(--button-border); border-radius: var(--r-control); padding: .625rem 1rem; display: inline-flex; align-items: center; justify-content: center; font-size: .8125rem; font-weight: 600; text-decoration: none; white-space: nowrap; transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out; }
 .mp-secondary-btn:hover:not(:disabled) { background: var(--button-hover-bg); color: var(--button-hover-text); border-color: var(--button-focus-ring); }
 kbd { display: inline-block; padding: .125rem .375rem; border: 1px solid var(--border-control); border-radius: .3125rem; background: var(--surface-panel); color: var(--ink-secondary); font-family: var(--font-system); font-size: .6875rem; font-weight: 500; line-height: 1.4; }
 
@@ -615,6 +615,22 @@ kbd { display: inline-block; padding: .125rem .375rem; border: 1px solid var(--b
   padding: .625rem 1rem;
   font-weight: 600;
   border: 1px solid var(--button-border);
+  border-radius: var(--r-control);
+  outline: none;
+  box-shadow: none;
+}
+.mp-create-actions .mp-random-btn:focus,
+.mp-create-actions .mp-random-btn:active,
+.mp-create-actions .mp-random-name:focus,
+.mp-create-actions .mp-random-name:active {
+  outline: none;
+  box-shadow: none;
+  border: 1px solid var(--button-border);
+}
+.mp-create-actions .mp-random-btn:focus-visible,
+.mp-create-actions .mp-random-name:focus-visible {
+  outline: 2px solid var(--button-focus-ring);
+  outline-offset: 2px;
 }
 .mp-join-section { margin-bottom: 1rem; }
 .mp-join-btn { width: 100%; margin-top: 12px; height: 46px; }
