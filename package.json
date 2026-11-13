@@ -44,6 +44,7 @@
   "overrides": {
     "postcss-selector-parser": "6.1.5",
     "postcss": "$postcss",
+    "deepmerge": "^4.3.1",
     "@typescript-eslint/typescript-estree": {
       "minimatch": "^11.0.8"
     },
