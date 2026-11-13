@@ -3,43 +3,52 @@
 /**
  * useTheme.ts
  * ===========
- * Manages light ↔ dark theme preference.
+ * Manages the active TypeGym theme (graphite, olive, light, midnight, legacy).
  *
  * Priority order:
  *   1. localStorage 'tg-theme'  (explicit user choice, persists across sessions)
  *   2. prefers-color-scheme     (OS setting, used when no stored pref)
- *   3. 'light'                  (hardcoded fallback)
+ *   3. 'graphite'               (hardcoded fallback)
  *
  * Applies data-theme immediately; CSS owns the interruptible color transition.
- * Only an explicit toggle writes a preference to storage.
+ * Only an explicit selection writes a preference to storage.
  */
 
 import { useState, useEffect, useCallback } from 'react'
 
-export type Theme = 'light' | 'dark'
+export type Theme = 'graphite' | 'olive' | 'light' | 'midnight' | 'legacy'
 
 const STORAGE_KEY = 'tg-theme'
 const THEME_CHANGE_EVENT = 'tg-theme-change'
+const VALID: Theme[] = ['graphite', 'olive', 'light', 'midnight', 'legacy']
+
+function isTheme(v: string | null): v is Theme {
+  return v !== null && (VALID as string[]).includes(v)
+}
 
 function getSystemTheme(): Theme {
-  if (typeof window === 'undefined') return 'light'
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  if (typeof window === 'undefined') return 'graphite'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'graphite' : 'light'
 }
 
 function getStoredTheme(): Theme | null {
   try {
     const v = localStorage.getItem(STORAGE_KEY)
-    if (v === 'dark' || v === 'light') return v
+    if (isTheme(v)) return v
   } catch {}
   return null
 }
 
 function applyTheme(theme: Theme) {
-  document.documentElement.setAttribute('data-theme', theme)
+  const root = document.documentElement
+  root.setAttribute('data-theme', theme)
+  // Tailwind dark: variants rely on a .dark class.
+  if (theme === 'light' || theme === 'legacy') root.classList.remove('dark')
+  else root.classList.add('dark')
 }
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>('light')
+  const [theme, setTheme] = useState<Theme>('graphite')
 
   useEffect(() => {
     const syncTheme = (next: Theme) => {
@@ -51,15 +60,16 @@ export function useTheme() {
 
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
     const onSystemChange = (e: MediaQueryListEvent) => {
-      if (getStoredTheme() === null) syncTheme(e.matches ? 'dark' : 'light')
+      if (getStoredTheme() === null) syncTheme(e.matches ? 'graphite' : 'light')
     }
     const onStorageChange = (e: StorageEvent) => {
       if (e.key !== STORAGE_KEY && e.key !== null) return
-      syncTheme(getStoredTheme() ?? getSystemTheme())
+      const v = getStoredTheme()
+      if (v) syncTheme(v)
     }
     const onThemeChange = () => {
       const current = document.documentElement.getAttribute('data-theme')
-      if (current === 'light' || current === 'dark') setTheme(current)
+      if (isTheme(current)) setTheme(current)
     }
 
     window.addEventListener('storage', onStorageChange)
@@ -81,17 +91,12 @@ export function useTheme() {
     }
   }, [])
 
-  const toggle = useCallback(() => {
-    // Read the immediately applied value so rapid toggles never use stale state.
-    const current = document.documentElement.getAttribute('data-theme')
-      ?? getStoredTheme() ?? getSystemTheme()
-    const next: Theme = current === 'dark' ? 'light' : 'dark'
+  const set = useCallback((next: Theme) => {
     applyTheme(next)
     setTheme(next)
     try { localStorage.setItem(STORAGE_KEY, next) } catch {}
-    // Storage events only reach other documents; keep local consumers in sync too.
     window.dispatchEvent(new Event(THEME_CHANGE_EVENT))
   }, [])
 
-  return { theme, toggle }
+  return { theme, setTheme: set }
 }

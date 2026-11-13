@@ -7,9 +7,11 @@ import {
 } from '@/hooks/useTypingEngine'
 import type { FinalResults, WordResult } from '@/hooks/useTypingEngine'
 import { UI_SPRING } from '@/lib/motion'
+import { useMobileKeyboard } from '@/hooks/useMobileKeyboard'
 import SiteHeader from '@/components/SiteHeader'
 import { RestartIcon, SiteFooter } from '@/components/icons'
 import ModeBar from './ModeBar'
+import VirtualKeyboard from './VirtualKeyboard'
 import WordDisplay from './WordDisplay'
 import LiveMetrics from './LiveMetrics'
 import ResultsScreen from './ResultsScreen'
@@ -20,6 +22,7 @@ export default function TypingApp() {
   const focusFrame = useRef<number | null>(null)
   const [isTouchDevice, setIsTouchDevice] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
+  const mobileKeyboardOpen = useMobileKeyboard(isFocused)
   const reduceMotion = useReducedMotion()
 
   const {
@@ -103,16 +106,10 @@ export default function TypingApp() {
     : `${codeLanguage === 'cpp' ? 'C++' : codeLanguage === 'javascript' ? 'JavaScript' : codeLanguage === 'python' ? 'Python' : codeLanguage === 'java' ? 'Java' : 'C'} practice`
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${mobileKeyboardOpen ? ' mobile-focus' : ''}`}>
       <div className="app-window">
-        <SiteHeader active="practice" />
+        {!mobileKeyboardOpen && <SiteHeader active="practice" />}
         <main id="main-content" className="app-main practice-main" tabIndex={-1}>
-          <div className="practice-intro">
-            <p className="eyebrow">Your daily typing workout</p>
-            <h1>Train your fingers. <span>Feed your streak.</span></h1>
-            <p>Type faster. Miss less.</p>
-          </div>
-
           {showResults ? (
             <ResultsScreen results={finalResults ?? fallbackResults} onRestart={restart} showKeyboardHint={!isTouchDevice} />
           ) : (
@@ -124,13 +121,21 @@ export default function TypingApp() {
                 onTime={setTimeSetting} onWord={setWordSetting}
               />
 
+              <div className="typing-status-row">
+                <span className="typing-status-duration">{mode === 'time' ? `${timeSetting}s` : mode === 'words' ? `${wordSetting} words` : mode === 'code' ? 'code' : 'quote'}</span>
+                <span className="typing-status-hint">{phase === 'idle' ? 'Type to begin' : isFocused ? 'Keep your rhythm' : 'Select words to continue'}</span>
+                <span className="mobile-focus-metrics">
+                  <LiveMetrics wpm={phase === 'idle' ? 0 : liveWPM} accuracy={phase === 'idle' ? 100 : liveAccuracy} timeLeft={timeLeft} mode={mode} />
+                </span>
+              </div>
+
               <section className="practice-workspace" aria-label="Typing practice">
                 <div className="practice-toolbar">
                   <div className="session-description">
                     <h2>{sessionLabel}</h2>
                     <p className={`session-status${phase === 'active' ? ' is-active' : ''}`} role="status">
                       <span className="status-dot" aria-hidden="true" />
-                      {phase === 'idle' ? 'Ready when you are' : isFocused ? 'Keep your rhythm' : mode === 'time' ? 'Timer running · select words to continue' : 'Select the words to continue'}
+                      {phase === 'idle' ? 'Ready when you are' : isFocused ? 'Keep your rhythm' : mode === 'time' ? 'Timer running' : 'Select words to continue'}
                     </p>
                   </div>
                   <LiveMetrics wpm={phase === 'idle' ? 0 : liveWPM} accuracy={phase === 'idle' ? 100 : liveAccuracy} timeLeft={timeLeft} mode={mode} />
@@ -167,17 +172,18 @@ export default function TypingApp() {
                 <div className="practice-progress" role="progressbar" aria-label={mode === 'time' ? 'Time elapsed' : 'Words completed'} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
                   <motion.div className="progress-fill" initial={false} animate={{ scaleX: progress }} transition={reduceMotion ? { duration: 0 } : UI_SPRING} />
                 </div>
-
-                <div className="practice-actions">
-                  <p id="typing-instructions" className="tap-hint">
-                    {isTouchDevice ? 'Tap the words to begin. Space moves to the next word.' : <><kbd>Space</kbd> next word <span className="hint-divider">·</span> <kbd>Tab</kbd> move between controls</>}
-                  </p>
-                  <button type="button" className="restart-btn" onClick={restart} aria-keyshortcuts="Escape">
-                    <RestartIcon /> Restart {!isTouchDevice && <kbd aria-hidden="true">Esc</kbd>}
-                  </button>
-                </div>
               </section>
-              <p className="practice-note">{mode === 'code' ? 'Real syntax. A steadier rhythm. Snippets change with each restart.' : 'Accuracy first. Speed will follow.'}</p>
+
+              <VirtualKeyboard />
+
+              <div className="practice-footer-row">
+                <p id="typing-instructions" className="tap-hint">
+                  {isTouchDevice ? 'Tap the words to begin.' : <><kbd>Space</kbd> next word <span className="hint-divider">·</span> <kbd>Tab</kbd> move between controls</>}
+                </p>
+                <button type="button" className="restart-btn" onClick={restart} aria-keyshortcuts="Escape">
+                  <RestartIcon /> Restart {!isTouchDevice && <kbd aria-hidden="true">Esc</kbd>}
+                </button>
+              </div>
             </div>
           )}
         </main>

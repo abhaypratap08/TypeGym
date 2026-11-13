@@ -16,17 +16,13 @@ interface StatCardProps {
   label: string
   value: string | number
   color: string
-  large?: boolean
 }
 
-function StatCard({ label, value, color, large = false }: StatCardProps) {
+function StatCard({ label, value, color }: StatCardProps) {
   return (
     <div className="result-stat">
       <dt className="result-stat-label">{label}</dt>
-      <dd
-        className={`result-stat-value${large ? ' is-large' : ''}`}
-        style={{ color }}
-      >
+      <dd className="result-stat-value" style={{ color }}>
         {value}
       </dd>
     </div>
@@ -83,15 +79,18 @@ export default function ResultsScreen({
       </p>
 
       <div className="results-header">
-        <h2
-          className="result-title"
-          id={headingId}
-          ref={headingRef}
-          tabIndex={-1}
-          aria-describedby={summaryId}
-        >
-          Session Results
-        </h2>
+        <div className="results-title-block">
+          <p className="result-eyebrow">Session complete</p>
+          <h2
+            className="result-title"
+            id={headingId}
+            ref={headingRef}
+            tabIndex={-1}
+            aria-describedby={summaryId}
+          >
+            Results
+          </h2>
+        </div>
         <span
           className="result-badge"
           style={{ color: perf.color }}
@@ -100,9 +99,18 @@ export default function ResultsScreen({
         </span>
       </div>
 
+      <div className="result-hero">
+        <div className="result-hero-stat">
+          <span className="result-hero-value" style={{ color: 'var(--teal)' }}>{wpm}</span>
+          <span className="result-hero-unit">WPM</span>
+        </div>
+        <div className="result-hero-meta">
+          <span className="result-hero-accuracy" style={{ color: accColor }}>{accuracy}%</span>
+          <span className="result-hero-accuracy-label">accuracy</span>
+        </div>
+      </div>
+
       <dl className="results-grid">
-        <StatCard label="Words per minute"   value={wpm}            color="var(--teal)" large />
-        <StatCard label="Accuracy"           value={`${accuracy}%`} color={accColor}    large />
         <StatCard label="Word errors"        value={errors}         color={errors === 0 ? 'var(--teal)' : 'var(--coral)'} />
         <StatCard label="Duration"           value={`${duration} s`} color="var(--ink-secondary)" />
         <StatCard label="Correct characters" value={correctChars}   color="var(--teal)" />

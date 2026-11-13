@@ -171,18 +171,20 @@ export default function MultiplayerLobby() {
               </div>
             )}
 
-            <h1 id="mp-lobby-title" className="mp-title">Join the race</h1>
+            <p className="mp-eyebrow">Multiplayer</p>
+            <h1 id="mp-lobby-title" className="mp-title">Race with friends</h1>
+            <p className="mp-tap-hint mp-lobby-lede">Create a room and share the code, or join one. Lane colors are assigned automatically so everyone stays visible.</p>
 
             <div className="mp-field">
               <label htmlFor="mp-display-name" className="mp-label">Display name</label>
-              <input
-                id="mp-display-name" name="displayName" className="mp-input" value={name}
-                onChange={e => setName(e.target.value)} maxLength={24} placeholder="Your name" autoComplete="nickname"
-              />
-              <button type="button" className="mp-secondary-btn mp-random-name" onClick={randomizeGuestName} disabled={busy}>Random name</button>
+              <div className="mp-name-row">
+                <input
+                  id="mp-display-name" name="displayName" className="mp-input" value={name}
+                  onChange={e => setName(e.target.value)} maxLength={24} placeholder="Your name" autoComplete="nickname"
+                />
+                <button type="button" className="mp-secondary-btn mp-random-name" onClick={randomizeGuestName} disabled={busy}>Random</button>
+              </div>
             </div>
-
-            <p className="mp-tap-hint mp-lane-note">Lane color is assigned randomly — everyone stays visible without choosing a swatch.</p>
 
             <button type="button" className="restart-btn mp-create-btn" onClick={() => void enterRoom('create')} disabled={!canProceed}>
               {busy ? 'Connecting…' : 'Create Room'}
@@ -197,13 +199,13 @@ export default function MultiplayerLobby() {
                   id="mp-room-code" name="roomCode" type="text" inputMode="numeric" autoComplete="off"
                   className={`mp-input mp-code-input${error ? ' mp-input-error' : ''}`} value={joinCode}
                   onChange={e => { setJoinCode(e.target.value.replace(/\D/g, '').slice(0, 4)); setError('') }}
-                  placeholder="4-digit code" maxLength={4} aria-invalid={Boolean(error)}
-                  aria-describedby={`mp-room-code-hint${error ? ' mp-room-code-error' : ''}`}
+                  placeholder="0000" maxLength={4} aria-invalid={Boolean(error)}
+                  aria-label="4-digit room code" aria-describedby={`mp-room-code-hint${error ? ' mp-room-code-error' : ''}`}
                 />
-                <button type="submit" className="restart-btn" disabled={!canProceed}>{busy ? 'Joining…' : 'Join'}</button>
               </div>
               <p id="mp-room-code-hint" className="mp-form-hint">Enter the 4-digit code shared by your host.</p>
               {error && <p id="mp-room-code-error" className="mp-error" role="alert">{error}</p>}
+              <button type="submit" className="restart-btn mp-join-btn" disabled={!canProceed}>{busy ? 'Joining…' : 'Join Room'}</button>
             </form>
           </motion.section>
         </main>

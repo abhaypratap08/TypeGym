@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import ThemeToggle from './ThemeToggle'
+import ThemeSwitcher from './ThemeSwitcher'
 
 interface SiteHeaderProps {
   active: 'practice' | 'race'
@@ -39,7 +39,7 @@ export default function SiteHeader({ active, right }: SiteHeaderProps) {
 
         <div className="site-header-actions">
           {right}
-          <ThemeToggle />
+          <ThemeSwitcher />
         </div>
       </header>
     </>
