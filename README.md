@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⌨️ TypeGym
+# TypeGym
 
 **Train your fingers. Feed your streak.**
 
@@ -15,43 +15,40 @@ Fast feedback, clean flow, and just enough challenge to keep you locked in.
 <br/>
 
 <img src="./assets/theme-graphite.png" alt="TypeGym in the Graphite theme" width="850"/>
+<br/>
+<sub><b>Graphite</b></sub>
 
 </div>
 
 ---
 
-## ✨ Features
+## Features
 
-- ⏱️ **Timed, Words, Quotes & Code** modes, with 15 / 30 / 60 / 120 s sessions
-- 🏁 **Practice or Race**, solo drills or head-to-head
-- 📊 **Live feedback**: speed, accuracy and time left as you type
-- 🎨 **Multiple themes**: Graphite, Midnight, Legacy, Olive and Light
-- ⌨️ **Keyboard-first**: `Space` next word · `Tab` move between controls · `Esc` restart
-
-## 🎨 Themes
+- **Timed, Words, Quotes & Code** modes, with 15 / 30 / 60 / 120 s sessions
+- **Practice or Race**, solo drills or head-to-head
+- **Live feedback**: speed, accuracy and time left as you type
+- **Multiple themes**: Graphite, Midnight, Legacy, Olive and Light
+- **Keyboard-first**: `Space` next word · `Tab` move between controls · `Esc` restart
+  
+## Themes
 
 <div align="center">
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="./assets/theme-midnight.png" alt="Midnight theme"/><br/><b>Midnight</b>
-    </td>
-    <td align="center" width="50%">
-      <img src="./assets/theme-legacy.png" alt="Legacy theme"/><br/><b>Legacy</b>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
-      <img src="./assets/theme-olive.png" alt="Olive theme"/><br/><b>Olive</b>
-    </td>
-    <td align="center" width="50%">
-      <img src="./assets/theme-graphite.png" alt="Graphite theme"/><br/><b>Graphite</b>
-    </td>
-  </tr>
-</table>
+
+<a href="./assets/theme-midnight.png"><img src="./assets/theme-midnight.png" alt="Midnight" title="Midnight" width="48%"/></a>
+&nbsp;
+<a href="./assets/theme-legacy.png"><img src="./assets/theme-legacy.png" alt="Legacy" title="Legacy" width="48%"/></a>
+<br/><br/>
+<a href="./assets/theme-olive.png"><img src="./assets/theme-olive.png" alt="Olive" title="Olive" width="48%"/></a>
+&nbsp;
+<a href="./assets/theme-graphite.png"><img src="./assets/theme-graphite.png" alt="Graphite" title="Graphite" width="48%"/></a>
+
+<br/>
+
+<sub><b>Midnight</b> · <b>Legacy</b> · <b>Olive</b> · <b>Graphite</b> — click a screenshot to enlarge</sub>
+
 </div>
 
-## 🚀 Run locally
+## Run locally
 
 ```bash
 git clone https://github.com/abhaypratap08/TypeGym.git
@@ -62,7 +59,7 @@ npm run dev
 
 Then open <http://localhost:3000>.
 
-## 🐛 Feedback
+## Feedback
 
 If anything feels broken, weird, or off, please [register an issue](https://github.com/abhaypratap08/TypeGym/issues).
 
