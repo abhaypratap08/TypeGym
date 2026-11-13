@@ -191,6 +191,12 @@ export default function WordDisplay({
     return () => window.removeEventListener('resize', onResize)
   }, [curIdx])
 
+  // Focus mode lets the text scroll; the window always restarts at the active
+  // line, so reset the scroll position whenever that line changes.
+  useLayoutEffect(() => {
+    if (textRef.current) textRef.current.scrollTop = 0
+  }, [lineStartIdx])
+
   // Only recompute the window slice when the word list or indices change —
   // NOT when `input` changes. This keeps PendingWord and CompletedWord
   // stable across keystrokes.

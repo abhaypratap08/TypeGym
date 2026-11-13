@@ -425,8 +425,8 @@ main[tabindex="-1"]:focus { outline: none; }
 }
 
 /* The floating header is the only translucent layer; content beneath is solid. */
-.app-shell { padding: max(1.25rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(.75rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); }
-.app-window { width: min(100%, 70rem); min-height: calc(100dvh - 2rem); margin: 0 auto; display: flex; flex-direction: column; }
+.app-shell { min-height: var(--app-height, 100dvh); padding: max(1.25rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(.75rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); }
+.app-window { width: min(100%, 70rem); min-height: calc(var(--app-height, 100dvh) - 2rem); margin: 0 auto; display: flex; flex-direction: column; }
 .site-header {
   position: sticky; top: .75rem; z-index: 20;
   display: flex; align-items: center; gap: 1rem;
@@ -1886,6 +1886,115 @@ kbd { display: inline-block; padding: .125rem .375rem; border: 1px solid var(--b
 .mobile-focus-workspace .word-display-text { font-size: clamp(1.125rem, 5vw, 1.375rem); line-height: 1.7; height: auto; max-height: none; min-height: 6rem; }
 .mobile-focus-restart { align-self: center; min-width: 5rem; height: 2.25rem; padding: .25rem .75rem; }
 
+/* ── Native keyboard focus mode ──────────────────────────────────────────────
+   While the software keyboard is up, the typing text is the only thing left on
+   screen: header, mode bar, session metrics, progress, hints and Restart are
+   all removed, and the shell is sized to the visible area above the keyboard. */
+body.keyboard-open {
+  overflow: hidden;
+}
+
+/* Only the typing text survives while the keyboard is up. These selectors are
+   the real component classes: <header class="site-header"> from SiteHeader,
+   .practice-toolbar (session label + LiveMetrics .metrics-row), and
+   .typing-status-row (duration/hint + .mobile-focus-metrics). */
+body.keyboard-open header,
+body.keyboard-open .site-header,
+body.keyboard-open .site-brand,
+body.keyboard-open .site-nav,
+body.keyboard-open .site-header-actions,
+body.keyboard-open .site-footer,
+body.keyboard-open .app-footer,
+body.keyboard-open .mode-bar,
+body.keyboard-open .mode-options-slot,
+body.keyboard-open .practice-intro,
+body.keyboard-open .practice-toolbar,
+body.keyboard-open .session-description,
+body.keyboard-open .session-status,
+body.keyboard-open .metrics-container,
+body.keyboard-open .metrics-row,
+body.keyboard-open .metric-card,
+body.keyboard-open .live-metrics,
+body.keyboard-open .typing-status-row,
+body.keyboard-open .typing-status-duration,
+body.keyboard-open .typing-status-hint,
+body.keyboard-open .mobile-focus-metrics,
+body.keyboard-open .practice-progress,
+body.keyboard-open .tap-hint,
+body.keyboard-open .virtual-keyboard,
+body.keyboard-open .practice-footer-row {
+  display: none !important;
+}
+
+/* Fit the shell to the visible area so no content hides behind the keyboard. */
+body.keyboard-open .app-shell {
+  height: var(--app-height, 100dvh);
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body.keyboard-open .app-window {
+  height: 100%;
+  min-height: 0;
+}
+
+body.keyboard-open .app-main {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+  justify-content: flex-start;
+}
+
+body.keyboard-open .test-layout {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  gap: 0;
+}
+
+/* The workspace fills the space above the keyboard; the word text is the only
+   scroller, so the first line can never clip under the notch. */
+body.keyboard-open .practice-workspace {
+  flex: 1;
+  min-height: 0;
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  padding: max(16px, env(safe-area-inset-top)) 1rem 0;
+  overflow: hidden;
+}
+
+body.keyboard-open .word-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+body.keyboard-open .word-display {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+}
+
+body.keyboard-open .word-display-text {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  height: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-top: 1.5rem;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  font-size: clamp(1.25rem, 5vw, 1.5rem);
+  line-height: 1.75;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 767px) {
   .virtual-keyboard { display: none !important; }
@@ -1900,7 +2009,7 @@ kbd { display: inline-block; padding: .125rem .375rem; border: 1px solid var(--b
   .mode-bar-sub { gap: 5px; }
   .mode-bar-sub .mode-btn { height: 30px; padding: 0 9px; font-size: 11px; min-width: 42px; }
   .word-display-text { font-size: clamp(1.125rem, 5vw, 1.375rem); line-height: 1.7; height: clamp(8rem, 20dvh, 11rem); }
-  .practice-workspace { padding: 0; }
+  .practice-workspace { padding: max(24px, env(safe-area-inset-top)) 0 0; }
   .practice-toolbar { flex-direction: column; align-items: flex-start; gap: .75rem; padding: 0; }
   .metrics-row { width: 100%; justify-content: space-between; gap: .5rem; }
   .metric-card { min-width: 0; }

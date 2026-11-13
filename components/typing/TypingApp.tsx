@@ -97,6 +97,13 @@ export default function TypingApp() {
   }, [currentInput, currentWordIdx, elapsed, mode, timeSetting, wordResults, words])
 
   const showResults = phase === 'finished' || (mode === 'time' && phase === 'active' && timeLeft <= 0)
+
+  // The typing input unmounts for results, which never fires blur; clearing
+  // focus keeps keyboard focus mode (and its hidden chrome) from sticking.
+  useEffect(() => {
+    if (showResults) setIsFocused(false)
+  }, [showResults])
+
   const progress = Math.min(1, mode === 'time'
     ? (timeSetting - timeLeft) / timeSetting
     : currentWordIdx / Math.max(words.length, 1))
