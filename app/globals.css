@@ -612,6 +612,9 @@ kbd { display: inline-block; padding: .125rem .375rem; border: 1px solid var(--b
   width: auto;
   height: 46px;
   min-width: 0;
+  padding: .625rem 1rem;
+  font-weight: 600;
+  border: 1px solid var(--button-border);
 }
 .mp-join-section { margin-bottom: 1rem; }
 .mp-join-btn { width: 100%; margin-top: 12px; height: 46px; }
