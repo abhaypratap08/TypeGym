@@ -182,7 +182,6 @@ export default function MultiplayerLobby() {
                   id="mp-display-name" name="displayName" className="mp-input" value={name}
                   onChange={e => setName(e.target.value)} maxLength={24} placeholder="Your name" autoComplete="nickname"
                 />
-                <button type="button" className="mp-secondary-btn mp-random-name" onClick={randomizeGuestName} disabled={busy}>Random</button>
               </div>
             </div>
 
@@ -194,7 +193,7 @@ export default function MultiplayerLobby() {
 
             <form className="mp-join-form" onSubmit={e => { e.preventDefault(); void enterRoom('join') }}>
               <label htmlFor="mp-room-code" className="mp-label">Room code</label>
-              <div className="mp-join-controls">
+              <div className="mp-join-row">
                 <input
                   id="mp-room-code" name="roomCode" type="text" inputMode="numeric" autoComplete="off"
                   className={`mp-input mp-code-input${error ? ' mp-input-error' : ''}`} value={joinCode}
@@ -202,10 +201,11 @@ export default function MultiplayerLobby() {
                   placeholder="0000" maxLength={4} aria-invalid={Boolean(error)}
                   aria-label="4-digit room code" aria-describedby={`mp-room-code-hint${error ? ' mp-room-code-error' : ''}`}
                 />
+                <button type="submit" className="restart-btn mp-join-btn" disabled={!canProceed}>{busy ? 'Joining…' : 'Join Room'}</button>
+                <button type="button" className="mp-secondary-btn mp-random-name" onClick={randomizeGuestName} disabled={busy}>Random</button>
               </div>
               <p id="mp-room-code-hint" className="mp-form-hint">Enter the 4-digit code shared by your host.</p>
               {error && <p id="mp-room-code-error" className="mp-error" role="alert">{error}</p>}
-              <button type="submit" className="restart-btn mp-join-btn" disabled={!canProceed}>{busy ? 'Joining…' : 'Join Room'}</button>
             </form>
           </motion.section>
         </main>

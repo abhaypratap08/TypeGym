@@ -466,7 +466,7 @@ main[tabindex="-1"]:focus { outline: none; }
 .mode-btn { position: relative; isolation: isolate; flex: 1; height: 100%; padding: 0 .5rem; background: transparent; border: 0; border-radius: 10px; color: var(--ink-secondary); font-size: 13px; font-weight: 500; white-space: nowrap; transition: color 150ms ease-out; }
 .mode-bar-primary .mode-btn { border-radius: 10px; height: 38px; }
 @media (hover: hover) {
-  .mode-bar-primary .mode-btn:not(.active):hover { background: transparent; color: #E5E7EB; }
+  .mode-bar-primary .mode-btn:not(.active):hover { background: var(--button-hover-bg); color: var(--button-hover-text); }
 }
 .mode-bar-sub .mode-btn { flex: 0 0 auto; height: 34px; padding: 0 11px; min-width: 48px; font-size: 12px; font-weight: 500; border-radius: 9px; border: 1px solid transparent; transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out; }
 .mode-btn.active { color: var(--mode-active-text); }
@@ -592,8 +592,6 @@ kbd { display: inline-block; padding: .125rem .375rem; border: 1px solid var(--b
 .mp-lobby-lede { margin-bottom: 1.5rem; }
 .mp-name-row { display: flex; align-items: stretch; gap: .5rem; }
 .mp-name-row .mp-input { flex: 1; }
-.mp-name-row .mp-random-name { flex-shrink: 0; }
-.mp-join-btn { width: 100%; margin-top: .75rem; }
 .mp-code-input { text-align: center; font-size: 1.25rem; letter-spacing: .25em; padding: .75rem 1rem; }
 .mp-title { font-size: clamp(1.75rem, 4vw, 2.25rem); font-weight: 650; letter-spacing: -.045em; line-height: 1.15; margin-bottom: 1.75rem; }
 .mp-label { display: block; font-size: .8125rem; font-weight: 600; margin-bottom: .5rem; color: var(--ink-secondary); }
@@ -601,7 +599,10 @@ kbd { display: inline-block; padding: .125rem .375rem; border: 1px solid var(--b
 .mp-input::placeholder { color: var(--ink-tertiary); opacity: 1; }
 .mp-input:focus { border-color: var(--border-focus); }
 .mp-input-error { border-color: var(--coral); }
-.mp-random-name { margin-top: .625rem; }
+.mp-join-row { display: flex; align-items: stretch; gap: 10px; width: 100%; }
+.mp-join-row .mp-input { flex: 1; min-width: 0; }
+.mp-join-row .mp-join-btn { flex: 1; width: auto; min-width: 0; height: 46px; }
+.mp-join-row .mp-random-name { flex: 0 0 104px; width: 104px; min-width: 104px; height: 46px; }
 .mp-tap-hint, .mp-form-hint { font-size: .8125rem; color: var(--ink-secondary); line-height: 1.6; text-wrap: pretty; }
 .mp-lane-note { margin: 1.25rem 0; }
 .mp-create-btn { width: 100%; }
